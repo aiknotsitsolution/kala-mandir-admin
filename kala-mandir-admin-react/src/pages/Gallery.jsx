@@ -71,7 +71,7 @@ export default function Gallery({ media, categories, onAdd, onEdit, onDelete }) 
           <option value="">All Categories</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name} ({c.type})
+              {c.name}
             </option>
           ))}
         </select>

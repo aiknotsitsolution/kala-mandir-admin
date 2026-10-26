@@ -4,9 +4,14 @@ import Dashboard from "./pages/Dashboard";
 import Gallery from "./pages/Gallery";
 import Categories from "./pages/Categories";
 import Subcategories from "./pages/Subcategories";
+import AdminEvents from "./pages/AdminEvents";
+import EventCategories from "./pages/EventCategories";
+import Enquiries from "./pages/Enquiries";
 import MediaFormModal from "./pages/MediaFormModal";
 import CategoryFormModal from "./pages/CategoryFormModal";
 import SubcategoryFormModal from "./pages/SubcategoryFormModal";
+import EventFormModal from "./pages/EventFormModal";
+import EventCategoryFormModal from "./pages/EventCategoryFormModal";
 import Modal from "./components/Modal";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
@@ -17,6 +22,9 @@ const PAGE_TITLES = {
   gallery: "Gallery",
   categories: "Categories",
   subcategories: "Subcategories",
+  events: "Events",
+  "event-categories": "Event Categories",
+  enquiries: "Enquiries",
 };
 
 export default function App() {
@@ -32,15 +40,21 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [media, setMedia] = useState([]);
+  const [eventCategories, setEventCategories] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
   const [editingMedia, setEditingMedia] = useState(null);
   const [catModalOpen, setCatModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState(null);
-  const [catDefaultType, setCatDefaultType] = useState("photo");
   const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
   const [editingSubcategory, setEditingSubcategory] = useState(null);
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [eventCategoryModalOpen, setEventCategoryModalOpen] = useState(false);
+  const [editingEventCategory, setEditingEventCategory] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
 
@@ -48,12 +62,24 @@ export default function App() {
     if (!token) return;
     setLoading(true);
     try {
-      const [categoryResult, mediaResult] = await Promise.all([
+      const [categoryResult, mediaResult, eventCategoryResult, eventResult, enquiryResult] = await Promise.all([
         apiRequest("/admin/categories", { token }),
         apiRequest("/admin/media", { token }),
+        apiRequest("/admin/event-categories", { token }),
+        apiRequest("/admin/events", { token }),
+        apiRequest("/admin/enquiries", { token }),
       ]);
       setCategories(categoryResult.data.map(normalizeCategory));
       setMedia(mediaResult.data.map(normalizeMedia));
+      setEventCategories(eventCategoryResult.data.map((category) => ({
+        ...category,
+        id: category._id,
+      })));
+      setEvents(eventResult.data.map((event) => ({ ...event, id: event._id })));
+      setEnquiries(enquiryResult.data.map((enquiry) => ({
+        ...enquiry,
+        id: enquiry._id,
+      })));
       setError("");
     } catch (err) {
       setError(err.message);
@@ -87,6 +113,9 @@ export default function App() {
     setUser(null);
     setCategories([]);
     setMedia([]);
+    setEventCategories([]);
+    setEvents([]);
+    setEnquiries([]);
   };
 
   const navigate = useCallback((nextPage) => {
@@ -120,9 +149,60 @@ export default function App() {
     }
   };
 
-  const openAddCategory = (type = "photo") => {
+  const openAddEvent = () => {
+    setEditingEvent(null);
+    setEventModalOpen(true);
+  };
+  const openEditEvent = (event) => {
+    setEditingEvent(event);
+    setEventModalOpen(true);
+  };
+  const saveEvent = async (formData, id, onProgress) => {
+    try {
+      const path = id ? `/admin/events/${id}` : "/admin/events";
+      await uploadRequest(path, {
+        token,
+        method: id ? "PUT" : "POST",
+        body: formData,
+        onProgress,
+      });
+      setEventModalOpen(false);
+      setError("");
+      await refreshData();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+  const openAddEventCategory = () => {
+    setEditingEventCategory(null);
+    setEventCategoryModalOpen(true);
+  };
+  const openEditEventCategory = (category) => {
+    setEditingEventCategory(category);
+    setEventCategoryModalOpen(true);
+  };
+  const saveEventCategory = async (data) => {
+    try {
+      await apiRequest(
+        data.id ? `/admin/event-categories/${data.id}` : "/admin/event-categories",
+        {
+          token,
+          method: data.id ? "PUT" : "POST",
+          body: JSON.stringify({ name: data.name }),
+        },
+      );
+      setEventCategoryModalOpen(false);
+      setError("");
+      await refreshData();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const openAddCategory = () => {
     setEditingCat(null);
-    setCatDefaultType(type);
     setCatModalOpen(true);
   };
   const openEditCategory = (category) => {
@@ -144,14 +224,12 @@ export default function App() {
       throw err;
     }
   };
-  const openAddSubcategory = (type = "photo") => {
+  const openAddSubcategory = () => {
     setEditingSubcategory(null);
-    setCatDefaultType(type);
     setSubcategoryModalOpen(true);
   };
   const openEditSubcategory = (category, name) => {
     setEditingSubcategory({ categoryId: category.id, name });
-    setCatDefaultType(category.type);
     setSubcategoryModalOpen(true);
   };
   const saveSubcategory = async ({
@@ -182,7 +260,6 @@ export default function App() {
         method: "PUT",
         body: JSON.stringify({
           name: category.name,
-          type: category.type,
           subcategories: updatedSubcategories,
         }),
       });
@@ -194,7 +271,6 @@ export default function App() {
             method: "PUT",
             body: JSON.stringify({
               name: originalCategory.name,
-              type: originalCategory.type,
               subcategories: originalCategory.subcategories.filter(
                 (item) => item !== originalName,
               ),
@@ -235,7 +311,6 @@ export default function App() {
           method: "PUT",
           body: JSON.stringify({
             name: category.name,
-            type: category.type,
             subcategories: category.subcategories.filter(
               (item) => item !== pendingDelete.name,
             ),
@@ -252,12 +327,15 @@ export default function App() {
       }
       return;
     }
-    const path =
-      pendingDelete.type === "media"
-        ? `/admin/media/${pendingDelete.id}`
-        : `/admin/categories/${pendingDelete.id}`;
+    const paths = {
+      media: `/admin/media/${pendingDelete.id}`,
+      category: `/admin/categories/${pendingDelete.id}`,
+      event: `/admin/events/${pendingDelete.id}`,
+      "event-category": `/admin/event-categories/${pendingDelete.id}`,
+      enquiry: `/admin/enquiries/${pendingDelete.id}`,
+    };
     try {
-      await apiRequest(path, { token, method: "DELETE" });
+      await apiRequest(paths[pendingDelete.type], { token, method: "DELETE" });
       setConfirmOpen(false);
       setPendingDelete(null);
       setError("");
@@ -298,6 +376,8 @@ export default function App() {
                 <Dashboard
                   media={media}
                   categories={categories}
+                  events={events}
+                  eventCategories={eventCategories}
                   onNavigate={navigate}
                   onEdit={openEditMedia}
                   onDelete={(item) => requestDelete("media", item)}
@@ -330,6 +410,29 @@ export default function App() {
                   }
                 />
               )}
+              {page === "events" && (
+                <AdminEvents
+                  events={events}
+                  categories={eventCategories}
+                  onAdd={openAddEvent}
+                  onEdit={openEditEvent}
+                  onDelete={(item) => requestDelete("event", item)}
+                />
+              )}
+              {page === "event-categories" && (
+                <EventCategories
+                  categories={eventCategories}
+                  onAdd={openAddEventCategory}
+                  onEdit={openEditEventCategory}
+                  onDelete={(item) => requestDelete("event-category", item)}
+                />
+              )}
+              {page === "enquiries" && (
+                <Enquiries
+                  enquiries={enquiries}
+                  onDelete={(item) => requestDelete("enquiry", item)}
+                />
+              )}
             </>
           )}
         </div>
@@ -346,7 +449,6 @@ export default function App() {
         onClose={() => setCatModalOpen(false)}
         onSave={saveCategory}
         editing={editingCat}
-        defaultType={catDefaultType}
       />
       <SubcategoryFormModal
         open={subcategoryModalOpen}
@@ -356,7 +458,20 @@ export default function App() {
         }}
         onSave={saveSubcategory}
         editing={editingSubcategory}
-        categories={categories.filter((category) => category.type === catDefaultType)}
+        categories={categories}
+      />
+      <EventFormModal
+        open={eventModalOpen}
+        onClose={() => setEventModalOpen(false)}
+        onSave={saveEvent}
+        editing={editingEvent}
+        categories={eventCategories}
+      />
+      <EventCategoryFormModal
+        open={eventCategoryModalOpen}
+        onClose={() => setEventCategoryModalOpen(false)}
+        onSave={saveEventCategory}
+        editing={editingEventCategory}
       />
       <Modal
         open={confirmOpen}
@@ -373,7 +488,13 @@ export default function App() {
         <p style={{ color: "var(--muted)", fontSize: "0.95rem" }}>
           {pendingDelete?.type === "media"
             ? "Delete this media item and its uploaded file? This cannot be undone."
-            : pendingDelete?.type === "subcategory"
+            : pendingDelete?.type === "event"
+              ? "Delete this event and its uploaded media file? This cannot be undone."
+              : pendingDelete?.type === "event-category"
+                ? "Delete this event category? Categories assigned to events cannot be deleted."
+                : pendingDelete?.type === "enquiry"
+                  ? "Delete this enquiry? This action cannot be undone."
+              : pendingDelete?.type === "subcategory"
               ? "Delete this subcategory? Subcategories assigned to gallery media cannot be deleted."
               : "Delete this category and its subcategories? Categories containing media cannot be deleted."}
         </p>

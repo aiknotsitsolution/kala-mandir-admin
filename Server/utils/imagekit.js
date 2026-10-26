@@ -1,11 +1,25 @@
-const ImageKit = require('imagekit');
+const ImageKit = require("imagekit");
 
-// Initialize ImageKit with your credentials
-const imagekit = new ImageKit({
+const getImageKit = () => {
+  const requiredEnv = [
+    "IMAGEKIT_PUBLIC_KEY",
+    "IMAGEKIT_PRIVATE_KEY",
+    "IMAGEKIT_URL_ENDPOINT",
+  ];
+  const missingEnv = requiredEnv.filter((name) => !process.env[name]);
+  if (missingEnv.length) {
+    const error = new Error(
+      `Missing required ImageKit configuration: ${missingEnv.join(", ")}`,
+    );
+    error.code = "IMAGEKIT_CONFIG_MISSING";
+    throw error;
+  }
 
-    publicKey: process.env.IMAGEKIT_PUBLIC_KEY,   // Public API Key from your ImageKit dashboard
-    urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT, // Your URL endpoint from the dashboard
-    privateKey: process.env.IMAGEKIT_PRIVATE_KEY, // Private API Key from your ImageKit dashboard
-});
+  return new ImageKit({
+    publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+    privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+    urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
+  });
+};
 
-module.exports = imagekit;
+module.exports = getImageKit;

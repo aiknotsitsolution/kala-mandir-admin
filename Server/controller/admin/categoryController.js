@@ -7,23 +7,21 @@ const normalizeSubcategories = (subcategories) => {
   return [...new Set(subcategories.map((item) => String(item).trim()).filter(Boolean))];
 };
 
-const validateCategory = (name, type, subcategories) => {
+const validateCategory = (name, subcategories) => {
   if (!name?.trim()) return "Category name is required";
-  if (!["photo", "video"].includes(type)) return "Category type must be photo or video";
   if (!Array.isArray(subcategories)) return "Subcategories must be a list";
   return null;
 };
 
 const createCategory = async (req, res) => {
-  const { name, type, subcategories } = req.body;
+  const { name, subcategories } = req.body;
   const normalizedSubcategories = normalizeSubcategories(subcategories);
-  const error = validateCategory(name, type, normalizedSubcategories);
+  const error = validateCategory(name, normalizedSubcategories);
   if (error) return res.status(400).json({ success: false, message: error });
 
   try {
     const category = await Category.create({
       name: name.trim(),
-      type,
       subcategories: normalizedSubcategories,
     });
     return res.status(201).json({ success: true, data: category });
@@ -44,9 +42,9 @@ const getAllCategories = async (_req, res) => {
 };
 
 const updateCategory = async (req, res) => {
-  const { name, type, subcategories } = req.body;
+  const { name, subcategories } = req.body;
   const normalizedSubcategories = normalizeSubcategories(subcategories);
-  const error = validateCategory(name, type, normalizedSubcategories);
+  const error = validateCategory(name, normalizedSubcategories);
   if (error) return res.status(400).json({ success: false, message: error });
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({ success: false, message: "Invalid category id" });
@@ -58,9 +56,8 @@ const updateCategory = async (req, res) => {
       return res.status(404).json({ success: false, message: "Category not found" });
     }
     const assignedMedia = await Media.find({ categoryId: req.params.id })
-      .select("type subcategory")
+      .select("subcategory")
       .lean();
-    const typeMismatch = assignedMedia.some((item) => item.type !== type);
     const removedSubcategories = existingCategory.subcategories.filter(
       (subcategory) => !normalizedSubcategories.includes(subcategory),
     );
@@ -73,13 +70,10 @@ const updateCategory = async (req, res) => {
     const isSimpleRename =
       removedSubcategories.length === 1 && addedSubcategories.length === 1;
 
-    if (
-      typeMismatch ||
-      (removedSubcategoryIsUsed && !isSimpleRename)
-    ) {
+    if (removedSubcategoryIsUsed && !isSimpleRename) {
       return res.status(409).json({
         success: false,
-        message: "Update or move assigned gallery items before changing this category's type or subcategories",
+        message: "Update or move assigned gallery items before changing this category's subcategories",
       });
     }
 
@@ -91,7 +85,6 @@ const updateCategory = async (req, res) => {
     }
 
     existingCategory.name = name.trim();
-    existingCategory.type = type;
     existingCategory.subcategories = normalizedSubcategories;
     const category = await existingCategory.save();
     return res.json({ success: true, data: category });

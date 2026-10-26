@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import Modal from "../components/Modal";
 
-export default function CategoryFormModal({ open, onClose, onSave, editing, defaultType }) {
+export default function CategoryFormModal({ open, onClose, onSave, editing }) {
   const [name, setName] = useState("");
-  const [type, setType] = useState("photo");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -12,12 +11,10 @@ export default function CategoryFormModal({ open, onClose, onSave, editing, defa
     setError("");
     if (editing) {
       setName(editing.name);
-      setType(editing.type);
     } else {
       setName("");
-      setType(defaultType || "photo");
     }
-  }, [open, editing, defaultType]);
+  }, [open, editing]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -30,7 +27,6 @@ export default function CategoryFormModal({ open, onClose, onSave, editing, defa
       await onSave({
         id: editing?.id,
         name: name.trim(),
-        type,
         subcategories: editing?.subcategories || [],
       });
     } catch (err) {
@@ -65,13 +61,6 @@ export default function CategoryFormModal({ open, onClose, onSave, editing, defa
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Classical Dance"
         />
-      </div>
-      <div className="field-group">
-        <label>Type</label>
-        <select className="field" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="photo">Photo</option>
-          <option value="video">Video</option>
-        </select>
       </div>
     </Modal>
   );

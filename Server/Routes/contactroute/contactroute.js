@@ -1,12 +1,10 @@
 const router = require("express").Router();
 const {
   createContactMessage,
-  getContactMessages,
-  deleteContactMessage,
+  createWebsiteEnquiry,
 } = require("../../controller/contactcontroller/contactcontroler");
 
 router.post("/create", createContactMessage);
-router.get("/", getContactMessages);
-router.delete("/:id", deleteContactMessage);
+router.post("/enquiries", createWebsiteEnquiry);
 
 module.exports = router;

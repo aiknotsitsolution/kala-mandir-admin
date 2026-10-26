@@ -1,4 +1,6 @@
-require("dotenv").config({ path: require("node:path").join(__dirname, ".env") });
+const path = require("node:path");
+require("dotenv").config({ path: path.join(__dirname, ".env.local") });
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express = require("express");
 const cookieParser = require("cookie-parser");
@@ -11,10 +13,11 @@ const authRoutes = require("./Routes/authRoute.js");
 const contactRoutes = require("./Routes/contactroute/contactroute.js");
 const blogRoutes = require("./Routes/Blogroute/categoryRoute.js");
 const adminRoutes = require("./Routes/adminRoute.js");
+const eventRoutes = require("./Routes/eventRoute.js");
 dns.setServers(["8.8.8.8", "1.1.1.1", "0.0.0.0"]);
 
 const app = express();
-const PORT = process.env.PORT || 8001;
+const PORT = process.env.PORT || 8000;
 morgan.token("body", (req) => {
   if (!req.body || typeof req.body !== "object") return "";
   const safeBody = { ...req.body };
@@ -23,6 +26,15 @@ morgan.token("body", (req) => {
   delete safeBody.currentPassword;
   delete safeBody.newPassword;
   delete safeBody.confirmPassword;
+  delete safeBody.name;
+  delete safeBody.email;
+  delete safeBody.phone;
+  delete safeBody.message;
+  delete safeBody.interest;
+  delete safeBody.ageGroup;
+  delete safeBody.method;
+  delete safeBody.company;
+  delete safeBody.captcha;
   return JSON.stringify(safeBody);
 });
 
@@ -60,6 +72,7 @@ app.use(
 app.use("/api/auth", authRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/blogcategory", blogRoutes);
+app.use("/api", eventRoutes);
 app.use("/api/admin", adminRoutes);
 
 app.get("/", (req, res) => {

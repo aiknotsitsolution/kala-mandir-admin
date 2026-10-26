@@ -5,8 +5,8 @@ export default function SubcategoryFormModal({
   open,
   onClose,
   onSave,
-  categories,
   editing,
+  categories,
 }) {
   const [categoryId, setCategoryId] = useState("");
   const [name, setName] = useState("");
@@ -15,26 +15,28 @@ export default function SubcategoryFormModal({
 
   useEffect(() => {
     if (!open) return;
-    setCategoryId(editing?.categoryId || "");
+    setCategoryId(editing?.categoryId || categories[0]?.id || "");
     setName(editing?.name || "");
     setError("");
-  }, [open, editing]);
+  }, [open, editing, categories]);
 
   const handleSave = async () => {
+    const normalizedName = name.trim();
     if (!categoryId) {
-      setError("Please select a category first.");
+      setError("Please select a category.");
       return;
     }
-    if (!name.trim()) {
+    if (!normalizedName) {
       setError("Please enter a subcategory name.");
       return;
     }
+
     setSaving(true);
     setError("");
     try {
       await onSave({
         categoryId,
-        name: name.trim(),
+        name: normalizedName,
         originalCategoryId: editing?.categoryId,
         originalName: editing?.name,
       });
@@ -56,7 +58,7 @@ export default function SubcategoryFormModal({
             Cancel
           </button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : editing ? "Save Changes" : "Create Subcategory"}
+            {saving ? "Saving..." : "Save Subcategory"}
           </button>
         </>
       }
@@ -69,14 +71,11 @@ export default function SubcategoryFormModal({
           id="subcategory-category"
           value={categoryId}
           onChange={(event) => setCategoryId(event.target.value)}
-          disabled={Boolean(editing)}
           required
         >
-          <option value="">Choose a category</option>
+          <option value="">Select category</option>
           {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name} ({category.type})
-            </option>
+            <option key={category.id} value={category.id}>{category.name}</option>
           ))}
         </select>
       </div>
@@ -87,7 +86,7 @@ export default function SubcategoryFormModal({
           id="subcategory-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="e.g. Kathak"
+          placeholder="e.g. Classical Dance"
           required
         />
       </div>

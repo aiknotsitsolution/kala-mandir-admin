@@ -12,6 +12,20 @@ const {
   updateMedia,
   deleteMedia,
 } = require("../controller/admin/mediaController");
+const {
+  getEventCategories,
+  getEvents,
+  createEventCategory,
+  updateEventCategory,
+  deleteEventCategory,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+} = require("../controller/admin/eventController");
+const {
+  getContactMessages,
+  deleteContactMessage,
+} = require("../controller/contactcontroller/contactcontroler");
 
 router.use(requireAuth);
 
@@ -24,5 +38,18 @@ router.get("/media", getAllMedia);
 router.post("/media", createMedia);
 router.put("/media/:id", updateMedia);
 router.delete("/media/:id", deleteMedia);
+
+router.get("/event-categories", getEventCategories);
+router.post("/event-categories", createEventCategory);
+router.put("/event-categories/:id", updateEventCategory);
+router.delete("/event-categories/:id", deleteEventCategory);
+
+router.get("/events", getEvents);
+router.post("/events", createEvent);
+router.put("/events/:id", updateEvent);
+router.delete("/events/:id", deleteEvent);
+
+router.get("/enquiries", getContactMessages);
+router.delete("/enquiries/:id", deleteContactMessage);
 
 module.exports = router;

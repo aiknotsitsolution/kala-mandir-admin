@@ -84,7 +84,7 @@ const contactSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, "Email is required"],
+      required: false,
       trim: true,
       lowercase: true,
       match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Please enter a valid email"],
@@ -102,6 +102,10 @@ const contactSchema = new mongoose.Schema(
       minlength: [2, "Subject must be at least 2 characters"],
       default: "Other",
     },
+    interest: { type: String, trim: true, default: "" },
+    ageGroup: { type: String, trim: true, default: "" },
+    preferredContact: { type: String, trim: true, default: "" },
+    source: { type: String, trim: true, default: "contact-form" },
     country: {
       type: String,
       trim: true,

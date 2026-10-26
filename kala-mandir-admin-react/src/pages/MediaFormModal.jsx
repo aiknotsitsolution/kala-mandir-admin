@@ -14,8 +14,7 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
   const fileRef = useRef(null);
   const zoneRef = useRef(null);
 
-  const typeCategories = categories.filter((category) => category.type === type);
-  const currentCategory = typeCategories.find((category) => category.id === categoryId);
+  const currentCategory = categories.find((category) => category.id === categoryId);
   const subcategories = currentCategory?.subcategories || [];
 
   useEffect(() => {
@@ -31,11 +30,11 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
   }, [open, editing]);
 
   useEffect(() => {
-    if (!typeCategories.some((category) => category.id === categoryId)) {
-      setCategoryId(typeCategories[0]?.id || "");
+    if (!categories.some((category) => category.id === categoryId)) {
+      setCategoryId(categories[0]?.id || "");
       setSubcategory("");
     }
-  }, [categoryId, typeCategories]);
+  }, [categoryId, categories]);
 
   useEffect(() => {
     if (!file) return undefined;
@@ -118,7 +117,9 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
           </div>
           <progress value={uploadProgress} max="100" aria-label="File upload progress" />
           {uploadProgress === 100 && (
-            <small>Waiting for Cloudinary to finish processing and save the media.</small>
+            <small>
+              Waiting for {type === "photo" ? "ImageKit" : "Cloudinary"} to finish processing and save the media.
+            </small>
           )}
         </div>
       )}
@@ -135,7 +136,7 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
             setError("");
           }}
         >
-          <option value="photo">Photo (Cloudinary)</option>
+          <option value="photo">Photo (ImageKit)</option>
           <option value="video">Video (Cloudinary)</option>
         </select>
       </div>
@@ -168,7 +169,7 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
         <p><strong>{file ? file.name : `Choose ${type === "photo" ? "photo" : "video"}`}</strong> or drag & drop</p>
         <p style={{ fontSize: "0.8rem", marginTop: 4 }}>
           {editing && !file ? "Leave empty to keep the current file. " : ""}
-          {type === "photo" ? "Images uploaded to Cloudinary" : "Videos uploaded to Cloudinary"}
+          {type === "photo" ? "Images uploaded to ImageKit" : "Videos uploaded to Cloudinary"}
         </p>
         <input
           ref={fileRef}
@@ -200,7 +201,7 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
           required
         >
           <option value="">Select category</option>
-          {typeCategories.map((category) => (
+          {categories.map((category) => (
             <option key={category.id} value={category.id}>{category.name}</option>
           ))}
         </select>
