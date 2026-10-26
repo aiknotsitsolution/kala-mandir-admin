@@ -303,9 +303,10 @@ const adminSlice = createSlice({
       )
       .addMatcher(
         isAnyOf(...mutationThunks.map((thunk) => thunk.rejected)),
-        (state, action) => {
+        (state) => {
           state.mutationCount = Math.max(0, state.mutationCount - 1);
-          state.error = action.payload || action.error.message || "The requested change failed.";
+          // No state.error here: mutation failures surface via inline form
+          // errors or toasts in App.jsx, not the global error banner.
         },
       );
   },

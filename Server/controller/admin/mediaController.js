@@ -327,6 +327,28 @@ const deleteMedia = async (req, res) => {
     const media = await Media.findById(req.params.id);
     if (!media) return res.status(404).json({ success: false, message: "Media not found" });
     provider = media.provider;
+
+    // Shared-asset guard: other records may reuse the same remote file
+    // (provider + providerFileId). In that case only this DB record is
+    // deleted; the provider file is left intact for the remaining records.
+    const sharedCount = await Media.countDocuments({
+      _id: { $ne: media._id },
+      provider: media.provider,
+      providerFileId: media.providerFileId,
+    });
+    if (sharedCount > 0) {
+      console.log("Skipping provider file deletion (shared by other records):", {
+        provider: media.provider,
+        providerFileId: media.providerFileId,
+        otherRecords: sharedCount,
+      });
+      await media.deleteOne();
+      return res.json({
+        success: true,
+        message: "Media deleted (uploaded file kept - shared by other media items)",
+      });
+    }
+
     await removeAsset(media);
     await media.deleteOne();
     return res.json({ success: true, message: "Media deleted" });

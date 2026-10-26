@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Gallery from "./pages/Gallery";
@@ -26,7 +27,6 @@ import {
   saveGalleryCategory,
   saveGalleryMedia,
   saveGallerySubcategory,
-  setAdminError,
   setSession,
 } from "./store/adminSlice";
 
@@ -50,18 +50,18 @@ export default function App() {
   const error = useSelector((state) => state.admin.error);
   const [page, setPage] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const setError = useCallback((message) => dispatch(setAdminError(message)), [dispatch]);
   const runMutation = useCallback(async (action) => {
+    // No generic error toast here: form modals surface validation/API errors
+    // inline, and the delete flow raises its own toast. This only re-throws.
     try {
       const result = await dispatch(action).unwrap();
       dispatch(clearAdminError());
       return result;
     } catch (cause) {
       const message = typeof cause === "string" ? cause : cause.message;
-      setError(message || "The requested change failed.");
       throw new Error(message || "The requested change failed.");
     }
-  }, [dispatch, setError]);
+  }, [dispatch]);
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
   const [editingMedia, setEditingMedia] = useState(null);
   const [catModalOpen, setCatModalOpen] = useState(false);
@@ -74,6 +74,7 @@ export default function App() {
   const [editingEventCategory, setEditingEventCategory] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
 
   const refreshData = useCallback(async () => {
     if (!token) return;
@@ -97,12 +98,14 @@ export default function App() {
     localStorage.setItem("kalamandir-admin-token", result.token);
     localStorage.setItem("kalamandir-admin-user", JSON.stringify(result.user));
     dispatch(setSession({ token: result.token, user: result.user }));
+    toast.success(`Welcome back, ${result.user?.name || "Admin"}!`);
   };
 
   const logout = () => {
     localStorage.removeItem("kalamandir-admin-token");
     localStorage.removeItem("kalamandir-admin-user");
     dispatch(clearSession());
+    toast.info("You have been signed out.");
   };
 
   const navigate = useCallback((nextPage) => {
@@ -120,6 +123,7 @@ export default function App() {
   };
   const saveMedia = async (formData, id, onProgress) => {
     await runMutation(saveGalleryMedia({ formData, id, onProgress }));
+    toast.success(id ? "Media updated successfully." : "Media uploaded successfully.");
     setMediaModalOpen(false);
   };
 
@@ -133,6 +137,7 @@ export default function App() {
   };
   const saveEvent = async (formData, id, onProgress) => {
     await runMutation(saveAdminEvent({ formData, id, onProgress }));
+    toast.success(id ? "Event updated successfully." : "Event added successfully.");
     setEventModalOpen(false);
   };
   const openAddEventCategory = () => {
@@ -145,6 +150,7 @@ export default function App() {
   };
   const saveEventCategory = async (data) => {
     await runMutation(saveEventCategoryAction(data));
+    toast.success(data.id ? "Event category updated successfully." : "Event category added successfully.");
     setEventCategoryModalOpen(false);
   };
 
@@ -158,6 +164,7 @@ export default function App() {
   };
   const saveCategory = async (data) => {
     await runMutation(saveGalleryCategory(data));
+    toast.success(data.id ? "Category updated successfully." : "Category added successfully.");
     setCatModalOpen(false);
   };
   const openAddSubcategory = () => {
@@ -180,13 +187,24 @@ export default function App() {
       originalCategoryId,
       originalName,
     }));
+    toast.success(originalName ? "Subcategory updated successfully." : "Subcategory added successfully.");
     setSubcategoryModalOpen(false);
     setEditingSubcategory(null);
   };
 
   const requestDelete = (type, item) => {
     setPendingDelete({ type, id: item.id, category: item.category, name: item.name });
+    setDeleteError("");
     setConfirmOpen(true);
+  };
+
+  const DELETE_SUCCESS_MESSAGES = {
+    media: "Media deleted successfully.",
+    category: "Category deleted successfully.",
+    subcategory: "Subcategory deleted successfully.",
+    event: "Event deleted successfully.",
+    "event-category": "Event category deleted successfully.",
+    enquiry: "Enquiry deleted successfully.",
   };
 
   const confirmDelete = async () => {
@@ -198,11 +216,17 @@ export default function App() {
         categoryId: pendingDelete.category?.id,
         name: pendingDelete.name,
       }));
+      toast.success(
+        DELETE_SUCCESS_MESSAGES[pendingDelete.type] || "Deleted successfully.",
+      );
+      setDeleteError("");
       setConfirmOpen(false);
       setPendingDelete(null);
     } catch (err) {
-      setConfirmOpen(false);
-      setPendingDelete(null);
+      const message = err.message || "Could not delete the item.";
+      toast.error(message);
+      // Keep the modal open with the reason so the user can retry or close.
+      setDeleteError(message);
     }
   };
 
@@ -336,12 +360,23 @@ export default function App() {
       />
       <Modal
         open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
+        onClose={() => {
+          setConfirmOpen(false);
+          setDeleteError("");
+        }}
         title="Confirm Delete"
         maxWidth="380px"
         footer={
           <>
-            <button className="btn btn-ghost" onClick={() => setConfirmOpen(false)}>Cancel</button>
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                setConfirmOpen(false);
+                setDeleteError("");
+              }}
+            >
+              Cancel
+            </button>
             <button className="btn btn-danger" onClick={confirmDelete} disabled={mutationCount > 0}>
               {mutationCount > 0 ? "Deleting..." : "Delete"}
             </button>
@@ -361,6 +396,11 @@ export default function App() {
               ? "Delete this subcategory? Subcategories assigned to gallery media cannot be deleted."
               : "Delete this category and its subcategories? Categories containing media cannot be deleted."}
         </p>
+        {deleteError && (
+          <div className="error-banner" role="alert" style={{ marginTop: 12 }}>
+            <span>{deleteError}</span>
+          </div>
+        )}
       </Modal>
     </div>
   );

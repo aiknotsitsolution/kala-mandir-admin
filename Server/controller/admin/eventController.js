@@ -235,6 +235,27 @@ const deleteEvent = async (req, res) => {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ success: false, message: "Event not found" });
     provider = event.provider;
+
+    // Same shared-asset guard as gallery media: if other event records
+    // reuse this provider file, only this DB record is removed.
+    const sharedCount = await Event.countDocuments({
+      _id: { $ne: event._id },
+      provider: event.provider,
+      providerFileId: event.providerFileId,
+    });
+    if (sharedCount > 0) {
+      console.log("Skipping event provider file deletion (shared by other records):", {
+        provider: event.provider,
+        providerFileId: event.providerFileId,
+        otherRecords: sharedCount,
+      });
+      await event.deleteOne();
+      return res.json({
+        success: true,
+        message: "Event deleted (uploaded file kept - shared by other events)",
+      });
+    }
+
     await removeAsset(event);
     await event.deleteOne();
     return res.json({ success: true, message: "Event deleted" });

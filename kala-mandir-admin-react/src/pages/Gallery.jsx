@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import MediaCard from "../components/MediaCard";
+import VideoPlayerModal from "../components/VideoPlayerModal";
 
 export default function Gallery({ media, categories, onAdd, onEdit, onDelete }) {
   const [typeFilter, setTypeFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("");
+  const [preview, setPreview] = useState(null); // { item, categoryName }
 
   const getCatName = (id) => categories.find((c) => c.id === id)?.name || "—";
 
@@ -91,10 +93,20 @@ export default function Gallery({ media, categories, onAdd, onEdit, onDelete }) 
               categoryName={getCatName(m.categoryId)}
               onEdit={onEdit}
               onDelete={onDelete}
+              onOpen={(item) =>
+                setPreview({ item, categoryName: getCatName(item.categoryId) })
+              }
             />
           ))}
         </div>
       )}
+
+      <VideoPlayerModal
+        open={Boolean(preview)}
+        onClose={() => setPreview(null)}
+        item={preview?.item}
+        categoryName={preview?.categoryName}
+      />
     </div>
   );
 }
