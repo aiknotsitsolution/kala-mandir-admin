@@ -14,6 +14,7 @@ const contactRoutes = require("./Routes/contactroute/contactroute.js");
 const blogRoutes = require("./Routes/Blogroute/categoryRoute.js");
 const adminRoutes = require("./Routes/adminRoute.js");
 const eventRoutes = require("./Routes/eventRoute.js");
+const galleryRoutes = require("./Routes/galleryRoute.js");
 dns.setServers(["8.8.8.8", "1.1.1.1", "0.0.0.0"]);
 
 const app = express();
@@ -73,6 +74,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/blogcategory", blogRoutes);
 app.use("/api", eventRoutes);
+app.use("/api/gallery", galleryRoutes);
 app.use("/api/admin", adminRoutes);
 
 app.get("/", (req, res) => {

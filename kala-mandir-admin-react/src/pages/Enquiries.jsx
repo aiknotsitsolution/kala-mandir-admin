@@ -37,7 +37,6 @@ export default function Enquiries({ enquiries, onDelete }) {
                 {enquiry.email && <div><span>Email</span><a href={`mailto:${enquiry.email}`}>{enquiry.email}</a></div>}
                 <div><span>Interested in</span><strong>{enquiry.interest || enquiry.subject || "—"}</strong></div>
                 {enquiry.ageGroup && <div><span>Age group</span><strong>{enquiry.ageGroup}</strong></div>}
-                {enquiry.preferredContact && <div><span>Preferred contact</span><strong>{enquiry.preferredContact}</strong></div>}
               </div>
               <p className="enquiry-message">{enquiry.message || "No message provided."}</p>
             </article>

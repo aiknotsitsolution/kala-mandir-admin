@@ -123,26 +123,22 @@ const createWebsiteEnquiry = async (req, res) => {
   const phone = String(req.body.phone || "").trim();
   const interest = String(req.body.interest || "").trim();
   const ageGroup = String(req.body.ageGroup || "").trim();
-  const preferredContact = String(req.body.method || "").trim();
   const message = String(req.body.message || "").trim();
   const company = String(req.body.company || "").trim();
 
   if (company) return res.status(201).json({ success: true, message: "Enquiry received" });
-  if (!name || !phone || !interest || !preferredContact) {
+  if (!name || !phone || !interest) {
     return res.status(400).json({
       success: false,
-      message: "Name, phone, interest and preferred contact method are required",
+      message: "Name, phone and interest are required",
     });
   }
   if (name.length > 80 || phone.length > 20 || interest.length > 100 ||
-    ageGroup.length > 40 || preferredContact.length > 30 || message.length > 600) {
+    ageGroup.length > 40 || message.length > 600) {
     return res.status(400).json({ success: false, message: "One or more enquiry fields are too long" });
   }
   if (!/^(\+?91[-\s]?)?[6-9]\d{9}$/.test(phone)) {
     return res.status(400).json({ success: false, message: "Enter a valid 10-digit Indian mobile number" });
-  }
-  if (!["WhatsApp", "Phone call", "SMS"].includes(preferredContact)) {
-    return res.status(400).json({ success: false, message: "Select a valid contact method" });
   }
 
   try {
@@ -152,12 +148,12 @@ const createWebsiteEnquiry = async (req, res) => {
       subject: interest,
       interest,
       ageGroup,
-      preferredContact,
       message: message || "No additional message provided.",
       source: "website-enquiry",
     });
     const notificationRecipient =
       process.env.ADMIN_EMAIL || process.env.EMAIL_TO || process.env.EMAIL_USER;
+    let emailSent = false;
     try {
       if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !notificationRecipient) {
         throw new Error("Email notification configuration is incomplete");
@@ -172,7 +168,6 @@ const createWebsiteEnquiry = async (req, res) => {
           `Phone: ${phone}`,
           `Interested in: ${interest}`,
           `Age group: ${ageGroup || "Not provided"}`,
-          `Preferred contact: ${preferredContact}`,
           `Message: ${message || "No additional message provided."}`,
         ].join("\n"),
         html: `
@@ -181,17 +176,17 @@ const createWebsiteEnquiry = async (req, res) => {
           <p><strong>Phone:</strong> ${escapeHtml(phone)}</p>
           <p><strong>Interested in:</strong> ${escapeHtml(interest)}</p>
           <p><strong>Age group:</strong> ${escapeHtml(ageGroup || "Not provided")}</p>
-          <p><strong>Preferred contact:</strong> ${escapeHtml(preferredContact)}</p>
           <p><strong>Message:</strong><br>${escapeHtml(message || "No additional message provided.").replace(/\r?\n/g, "<br>")}</p>
         `,
       });
+      emailSent = true;
     } catch (emailError) {
-      console.error("Website enquiry email notification failed:", emailError.message);
+      console.error("Website enquiry email notification failed:", emailError);
     }
     return res.status(201).json({
       success: true,
       message: "Your enquiry has been received",
-      data: { id: enquiry.id },
+      data: { id: enquiry.id, emailSent },
     });
   } catch (error) {
     console.error("Website enquiry save failed:", error.message);
