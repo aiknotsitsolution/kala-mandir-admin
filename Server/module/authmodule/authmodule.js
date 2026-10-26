@@ -19,6 +19,12 @@ const userSchema = new mongoose.Schema({
   loginOtpExpiresAt: { type: Date, select: false },
   loginOtpAttempts: { type: Number, select: false, default: 0 },
   loginOtpSentAt: { type: Date, select: false },
+  passwordResetOtpHash: { type: String, select: false },
+  passwordResetOtpExpiresAt: { type: Date, select: false },
+  passwordResetOtpAttempts: { type: Number, select: false, default: 0 },
+  passwordResetOtpSentAt: { type: Date, select: false },
+  passwordResetTokenHash: { type: String, select: false },
+  passwordResetTokenExpiresAt: { type: Date, select: false },
 }, { timestamps: true });
 
 // 👇 VERY IMPORTANT

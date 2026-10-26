@@ -7,6 +7,7 @@ const { sendMail } = require('../../utils/mailer');
 const OTP_LIFETIME_MS = 5 * 60 * 1000;
 const OTP_RESEND_INTERVAL_MS = 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
+const PASSWORD_RESET_TOKEN_LIFETIME_MS = 10 * 60 * 1000;
 
 const createOtpHash = (otp) => crypto
   .createHmac('sha256', process.env.JWT_SECRET || 'mysecretkey')
@@ -65,6 +66,185 @@ const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => (
   '"': '&quot;',
   "'": '&#39;',
 }[character]));
+
+const clearPasswordResetOtp = (user) => {
+  user.passwordResetOtpHash = undefined;
+  user.passwordResetOtpExpiresAt = undefined;
+  user.passwordResetOtpAttempts = 0;
+  user.passwordResetOtpSentAt = undefined;
+};
+
+const requestPasswordReset = async (req, res) => {
+  const normalizedEmail = String(req.body.email || '').trim().toLowerCase();
+  if (!normalizedEmail) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  try {
+    const user = await User.findOne({ email: normalizedEmail })
+      .select('+passwordResetOtpHash +passwordResetOtpExpiresAt +passwordResetOtpAttempts +passwordResetOtpSentAt');
+
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: 'If an admin account exists for this email, a reset code will be sent.',
+      });
+    }
+
+    const now = Date.now();
+    if (user.passwordResetOtpSentAt && now - user.passwordResetOtpSentAt.getTime() < OTP_RESEND_INTERVAL_MS) {
+      return res.status(200).json({
+        success: true,
+        message: 'If an admin account exists for this email, a reset code will be sent.',
+      });
+    }
+
+    const otp = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+    user.passwordResetOtpHash = createOtpHash(otp);
+    user.passwordResetOtpExpiresAt = new Date(now + OTP_LIFETIME_MS);
+    user.passwordResetOtpAttempts = 0;
+    user.passwordResetOtpSentAt = new Date(now);
+    user.passwordResetTokenHash = undefined;
+    user.passwordResetTokenExpiresAt = undefined;
+    await user.save();
+
+    try {
+      await sendMail({
+        to: user.email,
+        subject: 'Your Kala Mandir password reset code',
+        text: `Hello ${user.username}, your Kala Mandir password reset code is ${otp}. It expires in 5 minutes. If you did not request this code, you can ignore this email.`,
+        html: `<p>Hello ${escapeHtml(user.username)},</p><p>Your Kala Mandir password reset code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:8px">${otp}</p><p>This code expires in 5 minutes. If you did not request it, you can ignore this email.</p>`,
+      });
+    } catch (error) {
+      clearPasswordResetOtp(user);
+      await user.save();
+      throw error;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'If an admin account exists for this email, a reset code will be sent.',
+    });
+  } catch (err) {
+    console.error('Admin password reset code delivery failed:', err.message);
+    return res.status(503).json({
+      success: false,
+      message: 'Could not send the reset code. Check the mail configuration and try again.',
+    });
+  }
+};
+
+const verifyPasswordResetOtp = async (req, res) => {
+  const normalizedEmail = String(req.body.email || '').trim().toLowerCase();
+  const otp = String(req.body.otp || '').trim();
+  if (!normalizedEmail || !/^\d{6}$/.test(otp)) {
+    return res.status(400).json({ success: false, message: 'Enter the 6-digit reset code' });
+  }
+
+  try {
+    const user = await User.findOne({ email: normalizedEmail })
+      .select('+passwordResetOtpHash +passwordResetOtpExpiresAt +passwordResetOtpAttempts');
+    if (!user || !user.passwordResetOtpHash || !user.passwordResetOtpExpiresAt) {
+      return res.status(400).json({ success: false, message: 'Request a new reset code to continue' });
+    }
+
+    if (user.passwordResetOtpExpiresAt.getTime() <= Date.now()) {
+      clearPasswordResetOtp(user);
+      await user.save();
+      return res.status(400).json({ success: false, message: 'Reset code expired. Request a new code.' });
+    }
+
+    if (user.passwordResetOtpAttempts >= OTP_MAX_ATTEMPTS) {
+      clearPasswordResetOtp(user);
+      await user.save();
+      return res.status(429).json({ success: false, message: 'Too many incorrect attempts. Request a new code.' });
+    }
+
+    const suppliedHash = Buffer.from(createOtpHash(otp), 'hex');
+    const storedHash = Buffer.from(user.passwordResetOtpHash, 'hex');
+    const isMatch = suppliedHash.length === storedHash.length &&
+      crypto.timingSafeEqual(suppliedHash, storedHash);
+    if (!isMatch) {
+      user.passwordResetOtpAttempts += 1;
+      if (user.passwordResetOtpAttempts >= OTP_MAX_ATTEMPTS) {
+        clearPasswordResetOtp(user);
+      }
+      await user.save();
+      return res.status(401).json({ success: false, message: 'Incorrect reset code' });
+    }
+
+    clearPasswordResetOtp(user);
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.passwordResetTokenHash = createOtpHash(resetToken);
+    user.passwordResetTokenExpiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_LIFETIME_MS);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Code verified. You can now set a new password.',
+      resetToken,
+    });
+  } catch (err) {
+    console.error('Admin password reset code verification failed:', err.message);
+    return res.status(500).json({ success: false, message: 'Could not verify the code. Please try again.' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const normalizedEmail = String(req.body.email || '').trim().toLowerCase();
+  const resetToken = String(req.body.resetToken || '');
+  const { password, confirmPassword } = req.body;
+
+  if (!normalizedEmail || !resetToken || !password || !confirmPassword) {
+    return res.status(400).json({ success: false, message: 'All fields are required' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+  }
+  if (password !== confirmPassword) {
+    return res.status(400).json({ success: false, message: 'Passwords do not match' });
+  }
+
+  try {
+    const user = await User.findOne({ email: normalizedEmail })
+      .select('+passwordResetTokenHash +passwordResetTokenExpiresAt +loginOtpHash +loginOtpExpiresAt +loginOtpAttempts +loginOtpSentAt');
+    if (!user || !user.passwordResetTokenHash || !user.passwordResetTokenExpiresAt) {
+      return res.status(400).json({ success: false, message: 'Password reset session expired. Request a new code.' });
+    }
+
+    if (user.passwordResetTokenExpiresAt.getTime() <= Date.now()) {
+      user.passwordResetTokenHash = undefined;
+      user.passwordResetTokenExpiresAt = undefined;
+      await user.save();
+      return res.status(400).json({ success: false, message: 'Password reset session expired. Request a new code.' });
+    }
+
+    const suppliedHash = Buffer.from(createOtpHash(resetToken), 'hex');
+    const storedHash = Buffer.from(user.passwordResetTokenHash, 'hex');
+    const isMatch = suppliedHash.length === storedHash.length &&
+      crypto.timingSafeEqual(suppliedHash, storedHash);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid password reset session. Request a new code.' });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.passwordResetTokenHash = undefined;
+    user.passwordResetTokenExpiresAt = undefined;
+    user.loginOtpHash = undefined;
+    user.loginOtpExpiresAt = undefined;
+    user.loginOtpAttempts = 0;
+    user.loginOtpSentAt = undefined;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset successfully. Sign in with your new password.',
+    });
+  } catch (err) {
+    console.error('Admin password reset failed:', err.message);
+    return res.status(500).json({ success: false, message: 'Could not reset the password. Please try again.' });
+  }
+};
 
 // REGISTER USER
 const registerUser = async (req, res) => {
@@ -278,4 +458,7 @@ module.exports = {
   loginUser,
   resendLoginOtp,
   verifyLoginOtp,
+  requestPasswordReset,
+  verifyPasswordResetOtp,
+  resetPassword,
 };

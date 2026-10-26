@@ -1,5 +1,4 @@
 const path = require("node:path");
-require("dotenv").config({ path: path.join(__dirname, ".env.local") });
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express = require("express");
@@ -15,7 +14,12 @@ const blogRoutes = require("./Routes/Blogroute/categoryRoute.js");
 const adminRoutes = require("./Routes/adminRoute.js");
 const eventRoutes = require("./Routes/eventRoute.js");
 const galleryRoutes = require("./Routes/galleryRoute.js");
-dns.setServers(["8.8.8.8", "1.1.1.1", "0.0.0.0"]);
+
+const dnsServers = (process.env.DNS_SERVERS || "1.1.1.1,8.8.8.8")
+  .split(",")
+  .map((server) => server.trim())
+  .filter(Boolean);
+dns.setServers(dnsServers);
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -41,13 +45,16 @@ morgan.token("body", (req) => {
 
 app.use(express.json()); // for JSON bodies
 app.use(express.urlencoded({ extended: true })); // for form-urlencoded bodies
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected Successfully"))
-  .catch((err) => {
-    console.error("❌ MongoDB Connection Error:", err);
-    process.exit(1);
-  });
+const connectToDatabase = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ MongoDB Connected Successfully");
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error. Retrying in 5 seconds:", err);
+    setTimeout(connectToDatabase, 5000);
+  }
+};
+connectToDatabase();
 app.use(
   fileUpload({
     useTempFiles: false,

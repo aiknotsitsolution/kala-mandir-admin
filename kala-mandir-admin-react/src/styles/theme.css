@@ -1600,6 +1600,51 @@ img {
   letter-spacing: 0.45em;
 }
 
+.password-input {
+  position: relative;
+}
+
+.password-field {
+  padding-right: 50px;
+}
+
+.password-visibility {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.password-visibility svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.password-visibility:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.forgot-password-link {
+  margin: -8px 0 20px;
+  text-align: right;
+  font-size: 0.85rem;
+}
+
 .page-enter {
   animation: pageIn 0.25s ease;
 }
