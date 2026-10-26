@@ -1,4 +1,4 @@
-export default function Enquiries({ enquiries, onDelete }) {
+export default function Enquiries({ enquiries, onDelete, onRefresh, refreshing }) {
   return (
     <div className="page-enter">
       <div className="page-header">
@@ -6,7 +6,17 @@ export default function Enquiries({ enquiries, onDelete }) {
           <h2>Enquiries</h2>
           <p>Website contact requests and class enquiries</p>
         </div>
-        <div className="enquiry-count">{enquiries.length} total</div>
+        <div className="enquiry-header-actions">
+          <div className="enquiry-count">{enquiries.length} total</div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={onRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {!enquiries.length ? (

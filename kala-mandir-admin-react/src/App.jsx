@@ -97,6 +97,12 @@ export default function App() {
     refreshData();
   }, [refreshData]);
 
+  useEffect(() => {
+    if (page === "enquiries" && token) {
+      refreshData();
+    }
+  }, [page, refreshData, token]);
+
   const handleAuth = (result) => {
     localStorage.setItem("kalamandir-admin-token", result.token);
     localStorage.setItem("kalamandir-admin-user", JSON.stringify(result.user));
@@ -336,6 +342,8 @@ export default function App() {
                 <Enquiries
                   enquiries={enquiries}
                   onDelete={(item) => requestDelete("enquiry", item)}
+                  onRefresh={refreshData}
+                  refreshing={loading}
                 />
               )}
             </>

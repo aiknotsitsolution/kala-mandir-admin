@@ -140,6 +140,12 @@ const createWebsiteEnquiry = async (req, res) => {
   if (!/^(\+?91[-\s]?)?[6-9]\d{9}$/.test(phone)) {
     return res.status(400).json({ success: false, message: "Enter a valid 10-digit Indian mobile number" });
   }
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: "The database is unavailable. Your enquiry was not saved. Please try again shortly.",
+    });
+  }
 
   try {
     const enquiry = await Contact.create({
