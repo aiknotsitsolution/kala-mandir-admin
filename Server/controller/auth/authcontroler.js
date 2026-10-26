@@ -238,7 +238,8 @@ const resetPassword = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Password reset successfully. Sign in with your new password.',
+      message: 'Password reset successfully.',
+      ...createSession(user),
     });
   } catch (err) {
     console.error('Admin password reset failed:', err.message);

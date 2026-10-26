@@ -51,6 +51,7 @@ export default function Login({ onLogin }) {
             method: "POST",
             body: JSON.stringify({ email, resetToken, password, confirmPassword }),
           });
+          onLogin(result);
           setMode("login");
           setResetStep("email");
           setResetToken("");
