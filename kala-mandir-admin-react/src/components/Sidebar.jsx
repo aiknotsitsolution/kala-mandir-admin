@@ -136,7 +136,13 @@ export default function Sidebar({ currentPage, onNavigate, onLogout, open, onClo
 
         <div className="sidebar-footer">
           <div className="user-chip">
-            <div className="user-avatar">A</div>
+            {user?.profilePhotoUrl ? (
+              <img className="user-avatar user-avatar-image" src={user.profilePhotoUrl} alt="" />
+            ) : (
+              <div className="user-avatar">
+                {(user?.username || "A").charAt(0).toUpperCase()}
+              </div>
+            )}
             <div className="user-info">
               <strong>{user?.username || "Admin"}</strong>
               <span>{user?.email || ""}</span>

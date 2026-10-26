@@ -1,4 +1,4 @@
-export default function Topbar({ title, onMenuToggle }) {
+export default function Topbar({ title, onMenuToggle, user, onProfileClick }) {
   return (
     <header className="topbar">
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -16,6 +16,22 @@ export default function Topbar({ title, onMenuToggle }) {
         </button>
         <div className="topbar-title">{title}</div>
       </div>
+      <button
+        type="button"
+        className="topbar-profile"
+        onClick={onProfileClick}
+        aria-label="Edit admin profile"
+        title="Edit profile"
+      >
+        {user?.profilePhotoUrl ? (
+          <img src={user.profilePhotoUrl} alt="" className="topbar-avatar-image" />
+        ) : (
+          <span className="topbar-avatar-fallback" aria-hidden="true">
+            {(user?.username || "A").charAt(0).toUpperCase()}
+          </span>
+        )}
+        <span className="topbar-profile-name">{user?.username || "Admin"}</span>
+      </button>
     </header>
   );
 }

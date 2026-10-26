@@ -15,8 +15,10 @@ import SubcategoryFormModal from "./pages/SubcategoryFormModal";
 import EventFormModal from "./pages/EventFormModal";
 import EventCategoryFormModal from "./pages/EventCategoryFormModal";
 import Modal from "./components/Modal";
+import ProfileModal from "./pages/ProfileModal";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
+import { uploadRequest } from "./api";
 import {
   clearAdminError,
   clearSession,
@@ -75,6 +77,7 @@ export default function App() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleteError, setDeleteError] = useState("");
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const refreshData = useCallback(async () => {
     if (!token) return;
@@ -98,7 +101,19 @@ export default function App() {
     localStorage.setItem("kalamandir-admin-token", result.token);
     localStorage.setItem("kalamandir-admin-user", JSON.stringify(result.user));
     dispatch(setSession({ token: result.token, user: result.user }));
-    toast.success(`Welcome back, ${result.user?.name || "Admin"}!`);
+    toast.success(`Welcome back, ${result.user?.username || "Admin"}!`);
+  };
+
+  const saveProfile = async (formData) => {
+    const result = await uploadRequest("/admin/profile", {
+      token,
+      method: "PUT",
+      body: formData,
+    });
+    const updatedUser = result.data.user;
+    localStorage.setItem("kalamandir-admin-user", JSON.stringify(updatedUser));
+    dispatch(setSession({ token, user: updatedUser }));
+    toast.success("Profile updated successfully.");
   };
 
   const logout = () => {
@@ -243,7 +258,12 @@ export default function App() {
         user={user}
       />
       <div className="main">
-        <Topbar title={PAGE_TITLES[page]} onMenuToggle={() => setSidebarOpen((open) => !open)} />
+        <Topbar
+          title={PAGE_TITLES[page]}
+          onMenuToggle={() => setSidebarOpen((open) => !open)}
+          user={user}
+          onProfileClick={() => setProfileModalOpen(true)}
+        />
         <div className="content">
           {error && (
             <div className="error-banner" role="alert">
@@ -357,6 +377,12 @@ export default function App() {
         onClose={() => setEventCategoryModalOpen(false)}
         onSave={saveEventCategory}
         editing={editingEventCategory}
+      />
+      <ProfileModal
+        open={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        onSave={saveProfile}
+        user={user}
       />
       <Modal
         open={confirmOpen}

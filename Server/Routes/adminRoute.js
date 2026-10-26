@@ -26,9 +26,11 @@ const {
   getContactMessages,
   deleteContactMessage,
 } = require("../controller/contactcontroller/contactcontroler");
+const { updateProfile } = require("../controller/admin/profileController");
 
 router.use(requireAuth);
 
+router.put("/profile", updateProfile);
 router.get("/categories", getAllCategories);
 router.post("/categories", createCategory);
 router.put("/categories/:id", updateCategory);

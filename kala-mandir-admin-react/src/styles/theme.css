@@ -1372,6 +1372,10 @@ img {
   font-size: 0.85rem;
 }
 
+.user-avatar-image {
+  object-fit: cover;
+}
+
 .user-info {
   flex: 1;
   min-width: 0;
@@ -1411,6 +1415,99 @@ img {
 .topbar-title {
   font-family: "DM Serif Display", serif;
   font-size: 1.25rem;
+}
+
+.topbar-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px 5px 5px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.topbar-profile:hover {
+  border-color: var(--pink);
+}
+
+.topbar-avatar-image,
+.topbar-avatar-fallback {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.topbar-avatar-image {
+  object-fit: cover;
+}
+
+.topbar-avatar-fallback {
+  background: linear-gradient(135deg, var(--pink), #8b5cf6);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.topbar-profile-name {
+  max-width: 150px;
+  overflow: hidden;
+  font-size: 0.85rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-photo-picker {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.profile-photo-preview,
+.profile-photo-placeholder {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.profile-photo-preview {
+  object-fit: cover;
+}
+
+.profile-photo-placeholder {
+  background: linear-gradient(135deg, var(--pink), #8b5cf6);
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.profile-photo-picker > div {
+  min-width: 0;
+}
+
+.profile-photo-picker input[type="file"] {
+  max-width: 100%;
+  padding: 8px;
+  font-size: 0.8rem;
+}
+
+.profile-photo-picker small,
+#profile-email + small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .content {

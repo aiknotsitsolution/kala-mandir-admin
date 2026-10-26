@@ -25,6 +25,8 @@ const userSchema = new mongoose.Schema({
   passwordResetOtpSentAt: { type: Date, select: false },
   passwordResetTokenHash: { type: String, select: false },
   passwordResetTokenExpiresAt: { type: Date, select: false },
+  profilePhotoUrl: { type: String, default: "" },
+  profilePhotoFileId: { type: String, select: false, default: "" },
 }, { timestamps: true });
 
 // 👇 VERY IMPORTANT
