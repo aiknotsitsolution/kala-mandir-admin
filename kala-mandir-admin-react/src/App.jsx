@@ -16,11 +16,16 @@ import EventCategoryFormModal from "./pages/EventCategoryFormModal";
 import Modal from "./components/Modal";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
-import { apiRequest, uploadRequest } from "./api";
 import {
   clearAdminError,
   clearSession,
   fetchAdminData,
+  deleteAdminItem,
+  saveAdminEvent,
+  saveEventCategory as saveEventCategoryAction,
+  saveGalleryCategory,
+  saveGalleryMedia,
+  saveGallerySubcategory,
   setAdminError,
   setSession,
 } from "./store/adminSlice";
@@ -41,10 +46,22 @@ export default function App() {
   const { categories, media, eventCategories, events, enquiries } =
     useSelector((state) => state.admin.data);
   const loading = useSelector((state) => state.admin.loading);
+  const mutationCount = useSelector((state) => state.admin.mutationCount);
   const error = useSelector((state) => state.admin.error);
   const [page, setPage] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const setError = useCallback((message) => dispatch(setAdminError(message)), [dispatch]);
+  const runMutation = useCallback(async (action) => {
+    try {
+      const result = await dispatch(action).unwrap();
+      dispatch(clearAdminError());
+      return result;
+    } catch (cause) {
+      const message = typeof cause === "string" ? cause : cause.message;
+      setError(message || "The requested change failed.");
+      throw new Error(message || "The requested change failed.");
+    }
+  }, [dispatch, setError]);
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
   const [editingMedia, setEditingMedia] = useState(null);
   const [catModalOpen, setCatModalOpen] = useState(false);
@@ -102,21 +119,8 @@ export default function App() {
     setMediaModalOpen(true);
   };
   const saveMedia = async (formData, id, onProgress) => {
-    try {
-      const path = id ? `/admin/media/${id}` : "/admin/media";
-      await uploadRequest(path, {
-        token,
-        method: id ? "PUT" : "POST",
-        body: formData,
-        onProgress,
-      });
-      setMediaModalOpen(false);
-      setError("");
-      await refreshData();
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
+    await runMutation(saveGalleryMedia({ formData, id, onProgress }));
+    setMediaModalOpen(false);
   };
 
   const openAddEvent = () => {
@@ -128,21 +132,8 @@ export default function App() {
     setEventModalOpen(true);
   };
   const saveEvent = async (formData, id, onProgress) => {
-    try {
-      const path = id ? `/admin/events/${id}` : "/admin/events";
-      await uploadRequest(path, {
-        token,
-        method: id ? "PUT" : "POST",
-        body: formData,
-        onProgress,
-      });
-      setEventModalOpen(false);
-      setError("");
-      await refreshData();
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
+    await runMutation(saveAdminEvent({ formData, id, onProgress }));
+    setEventModalOpen(false);
   };
   const openAddEventCategory = () => {
     setEditingEventCategory(null);
@@ -153,22 +144,8 @@ export default function App() {
     setEventCategoryModalOpen(true);
   };
   const saveEventCategory = async (data) => {
-    try {
-      await apiRequest(
-        data.id ? `/admin/event-categories/${data.id}` : "/admin/event-categories",
-        {
-          token,
-          method: data.id ? "PUT" : "POST",
-          body: JSON.stringify({ name: data.name }),
-        },
-      );
-      setEventCategoryModalOpen(false);
-      setError("");
-      await refreshData();
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
+    await runMutation(saveEventCategoryAction(data));
+    setEventCategoryModalOpen(false);
   };
 
   const openAddCategory = () => {
@@ -180,19 +157,8 @@ export default function App() {
     setCatModalOpen(true);
   };
   const saveCategory = async (data) => {
-    try {
-      await apiRequest(data.id ? `/admin/categories/${data.id}` : "/admin/categories", {
-        token,
-        method: data.id ? "PUT" : "POST",
-        body: JSON.stringify(data),
-      });
-      setCatModalOpen(false);
-      setError("");
-      await refreshData();
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
+    await runMutation(saveGalleryCategory(data));
+    setCatModalOpen(false);
   };
   const openAddSubcategory = () => {
     setEditingSubcategory(null);
@@ -208,54 +174,14 @@ export default function App() {
     originalCategoryId,
     originalName,
   }) => {
-    const category = categories.find((item) => item.id === categoryId);
-    if (!category) throw new Error("Please select a valid category.");
-    if (
-      category.subcategories.some(
-        (item) =>
-          item.toLowerCase() === name.toLowerCase() &&
-          !(categoryId === originalCategoryId && item === originalName),
-      )
-    ) {
-      throw new Error("This subcategory already exists in the selected category.");
-    }
-
-    const updatedSubcategories =
-      categoryId === originalCategoryId
-        ? category.subcategories.map((item) => (item === originalName ? name : item))
-        : [...category.subcategories, name];
-    try {
-      await apiRequest(`/admin/categories/${categoryId}`, {
-        token,
-        method: "PUT",
-        body: JSON.stringify({
-          name: category.name,
-          subcategories: updatedSubcategories,
-        }),
-      });
-      if (originalCategoryId && originalCategoryId !== categoryId) {
-        const originalCategory = categories.find((item) => item.id === originalCategoryId);
-        if (originalCategory) {
-          await apiRequest(`/admin/categories/${originalCategoryId}`, {
-            token,
-            method: "PUT",
-            body: JSON.stringify({
-              name: originalCategory.name,
-              subcategories: originalCategory.subcategories.filter(
-                (item) => item !== originalName,
-              ),
-            }),
-          });
-        }
-      }
-      setSubcategoryModalOpen(false);
-      setEditingSubcategory(null);
-      setError("");
-      await refreshData();
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
+    await runMutation(saveGallerySubcategory({
+      categoryId,
+      name,
+      originalCategoryId,
+      originalName,
+    }));
+    setSubcategoryModalOpen(false);
+    setEditingSubcategory(null);
   };
 
   const requestDelete = (type, item) => {
@@ -265,55 +191,18 @@ export default function App() {
 
   const confirmDelete = async () => {
     if (!pendingDelete) return;
-    if (pendingDelete.type === "subcategory") {
-      const category = categories.find(
-        (item) => item.id === pendingDelete.category.id,
-      );
-      if (!category) {
-        setConfirmOpen(false);
-        setPendingDelete(null);
-        setError("Category not found.");
-        return;
-      }
-      try {
-        await apiRequest(`/admin/categories/${category.id}`, {
-          token,
-          method: "PUT",
-          body: JSON.stringify({
-            name: category.name,
-            subcategories: category.subcategories.filter(
-              (item) => item !== pendingDelete.name,
-            ),
-          }),
-        });
-        setConfirmOpen(false);
-        setPendingDelete(null);
-        setError("");
-        await refreshData();
-      } catch (err) {
-        setConfirmOpen(false);
-        setPendingDelete(null);
-        setError(err.message);
-      }
-      return;
-    }
-    const paths = {
-      media: `/admin/media/${pendingDelete.id}`,
-      category: `/admin/categories/${pendingDelete.id}`,
-      event: `/admin/events/${pendingDelete.id}`,
-      "event-category": `/admin/event-categories/${pendingDelete.id}`,
-      enquiry: `/admin/enquiries/${pendingDelete.id}`,
-    };
     try {
-      await apiRequest(paths[pendingDelete.type], { token, method: "DELETE" });
+      await runMutation(deleteAdminItem({
+        type: pendingDelete.type,
+        id: pendingDelete.id,
+        categoryId: pendingDelete.category?.id,
+        name: pendingDelete.name,
+      }));
       setConfirmOpen(false);
       setPendingDelete(null);
-      setError("");
-      await refreshData();
     } catch (err) {
       setConfirmOpen(false);
       setPendingDelete(null);
-      setError(err.message);
     }
   };
 
@@ -453,7 +342,9 @@ export default function App() {
         footer={
           <>
             <button className="btn btn-ghost" onClick={() => setConfirmOpen(false)}>Cancel</button>
-            <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
+            <button className="btn btn-danger" onClick={confirmDelete} disabled={mutationCount > 0}>
+              {mutationCount > 0 ? "Deleting..." : "Delete"}
+            </button>
           </>
         }
       >
