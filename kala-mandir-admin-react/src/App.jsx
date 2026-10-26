@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Gallery from "./pages/Gallery";
@@ -15,7 +16,14 @@ import EventCategoryFormModal from "./pages/EventCategoryFormModal";
 import Modal from "./components/Modal";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
-import { apiRequest, normalizeCategory, normalizeMedia, uploadRequest } from "./api";
+import { apiRequest, uploadRequest } from "./api";
+import {
+  clearAdminError,
+  clearSession,
+  fetchAdminData,
+  setAdminError,
+  setSession,
+} from "./store/adminSlice";
 
 const PAGE_TITLES = {
   dashboard: "Dashboard",
@@ -28,23 +36,15 @@ const PAGE_TITLES = {
 };
 
 export default function App() {
-  const [token, setToken] = useState(() => localStorage.getItem("kalamandir-admin-token"));
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("kalamandir-admin-user")) || null;
-    } catch {
-      return null;
-    }
-  });
+  const dispatch = useDispatch();
+  const { token, user } = useSelector((state) => state.admin.auth);
+  const { categories, media, eventCategories, events, enquiries } =
+    useSelector((state) => state.admin.data);
+  const loading = useSelector((state) => state.admin.loading);
+  const error = useSelector((state) => state.admin.error);
   const [page, setPage] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [media, setMedia] = useState([]);
-  const [eventCategories, setEventCategories] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [enquiries, setEnquiries] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const setError = useCallback((message) => dispatch(setAdminError(message)), [dispatch]);
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
   const [editingMedia, setEditingMedia] = useState(null);
   const [catModalOpen, setCatModalOpen] = useState(false);
@@ -60,39 +60,17 @@ export default function App() {
 
   const refreshData = useCallback(async () => {
     if (!token) return;
-    setLoading(true);
     try {
-      const [categoryResult, mediaResult, eventCategoryResult, eventResult, enquiryResult] = await Promise.all([
-        apiRequest("/admin/categories", { token }),
-        apiRequest("/admin/media", { token }),
-        apiRequest("/admin/event-categories", { token }),
-        apiRequest("/admin/events", { token }),
-        apiRequest("/admin/enquiries", { token }),
-      ]);
-      setCategories(categoryResult.data.map(normalizeCategory));
-      setMedia(mediaResult.data.map(normalizeMedia));
-      setEventCategories(eventCategoryResult.data.map((category) => ({
-        ...category,
-        id: category._id,
-      })));
-      setEvents(eventResult.data.map((event) => ({ ...event, id: event._id })));
-      setEnquiries(enquiryResult.data.map((enquiry) => ({
-        ...enquiry,
-        id: enquiry._id,
-      })));
-      setError("");
+      await dispatch(fetchAdminData(token)).unwrap();
     } catch (err) {
-      setError(err.message);
-      if (/token|authentication/i.test(err.message)) {
+      const message = typeof err === "string" ? err : err.message;
+      if (/token|authentication/i.test(message || "")) {
         localStorage.removeItem("kalamandir-admin-token");
         localStorage.removeItem("kalamandir-admin-user");
-        setToken(null);
-        setUser(null);
+        dispatch(clearSession());
       }
-    } finally {
-      setLoading(false);
     }
-  }, [token]);
+  }, [dispatch, token]);
 
   useEffect(() => {
     refreshData();
@@ -101,21 +79,13 @@ export default function App() {
   const handleAuth = (result) => {
     localStorage.setItem("kalamandir-admin-token", result.token);
     localStorage.setItem("kalamandir-admin-user", JSON.stringify(result.user));
-    setToken(result.token);
-    setUser(result.user);
-    setError("");
+    dispatch(setSession({ token: result.token, user: result.user }));
   };
 
   const logout = () => {
     localStorage.removeItem("kalamandir-admin-token");
     localStorage.removeItem("kalamandir-admin-user");
-    setToken(null);
-    setUser(null);
-    setCategories([]);
-    setMedia([]);
-    setEventCategories([]);
-    setEvents([]);
-    setEnquiries([]);
+    dispatch(clearSession());
   };
 
   const navigate = useCallback((nextPage) => {
@@ -365,7 +335,7 @@ export default function App() {
           {error && (
             <div className="error-banner" role="alert">
               <span>{error}</span>
-              <button type="button" onClick={() => setError("")} aria-label="Dismiss error">×</button>
+              <button type="button" onClick={() => dispatch(clearAdminError())} aria-label="Dismiss error">×</button>
             </div>
           )}
           {loading ? (
@@ -378,6 +348,8 @@ export default function App() {
                   categories={categories}
                   events={events}
                   eventCategories={eventCategories}
+                  enquiries={enquiries}
+                  user={user}
                   onNavigate={navigate}
                   onEdit={openEditMedia}
                   onDelete={(item) => requestDelete("media", item)}

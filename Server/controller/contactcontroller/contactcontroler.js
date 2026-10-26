@@ -1,18 +1,7 @@
 const Contact = require("../../module/contactmodule/contactmodule.js"); // adjust path
-const nodemailer = require("nodemailer");
 const axios = require("axios");
 const mongoose = require("mongoose");
-
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: Number(process.env.EMAIL_PORT || 465),
-  secure: Number(process.env.EMAIL_PORT || 465) === 465,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS?.replace(/\s/g, ""),
-  },
-  connectionTimeout: 10000,
-});
+const { sendMail } = require("../../utils/mailer");
 
 const escapeHtml = (value) =>
   String(value).replace(/[&<>"']/g, (character) => ({
@@ -86,7 +75,7 @@ const createContactMessage = async (req, res) => {
     const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
 
     // ✅ Send Email to Admin
-    const adminMail = transporter.sendMail({
+    const adminMail = sendMail({
       from: `"Website Enquiry" <${process.env.EMAIL_USER}>`,
       to: adminEmail,
       subject: `New Enquiry: ${subject}`,
@@ -101,7 +90,7 @@ const createContactMessage = async (req, res) => {
     });
 
     // ✅ Send Email to User
-    const userMail = transporter.sendMail({
+    const userMail = sendMail({
       from: `"Edu-hawk World" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Thank You – We Received Your Inquiry",
@@ -173,7 +162,7 @@ const createWebsiteEnquiry = async (req, res) => {
       if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !notificationRecipient) {
         throw new Error("Email notification configuration is incomplete");
       }
-      await transporter.sendMail({
+      await sendMail({
         from: `"Kala Mandir Website" <${process.env.EMAIL_USER}>`,
         to: notificationRecipient,
         subject: `New Kala Mandir enquiry: ${interest}`,

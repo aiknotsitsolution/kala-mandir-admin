@@ -14,7 +14,11 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true
-  }
+  },
+  loginOtpHash: { type: String, select: false },
+  loginOtpExpiresAt: { type: Date, select: false },
+  loginOtpAttempts: { type: Number, select: false, default: 0 },
+  loginOtpSentAt: { type: Date, select: false },
 }, { timestamps: true });
 
 // 👇 VERY IMPORTANT

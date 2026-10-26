@@ -7,6 +7,8 @@ export default function Dashboard({
   categories,
   events,
   eventCategories,
+  enquiries,
+  user,
   onNavigate,
   onEdit,
   onDelete,
@@ -26,47 +28,69 @@ export default function Dashboard({
     }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   const maxEventCategoryCount = Math.max(1, ...eventCategoryCounts.map((item) => item.count));
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const today = new Intl.DateTimeFormat("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
 
   const getCatName = (id) => categories.find((c) => c.id === id)?.name || "—";
 
   return (
     <div className="page-enter">
-      <div className="page-header">
-        <div>
-          <h2>Dashboard</h2>
-          <p>Your gallery and event activity at a glance</p>
+      <section className="dashboard-hero">
+        <div className="dashboard-hero-copy">
+          <span className="dashboard-eyebrow">KALA MANDIR · ADMIN OVERVIEW</span>
+          <h2>{greeting}{user?.username ? `, ${user.username}` : ""}</h2>
+          <p>Your studio at a glance. Here’s what’s happening across your gallery and events.</p>
+          <span className="dashboard-date">{today}</span>
         </div>
         <div className="dashboard-quick-actions">
-          <button className="btn btn-ghost btn-sm" onClick={() => onNavigate("events")}>Manage events</button>
-          <button className="btn btn-primary btn-sm" onClick={() => onNavigate("gallery")}>Open gallery</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => onNavigate("events")}>Manage events <span aria-hidden="true">↗</span></button>
+          <button className="btn btn-primary btn-sm" onClick={() => onNavigate("gallery")}>Open gallery <span aria-hidden="true">↗</span></button>
         </div>
-      </div>
+        <div className="dashboard-hero-mark" aria-hidden="true">KM</div>
+      </section>
 
       <div className="stats-row">
-        <button type="button" className="stat-card stat-card-button" onClick={() => onNavigate("gallery")}>
+        <button type="button" className="stat-card stat-card-button" onClick={() => onNavigate("gallery")} aria-label={`View ${photoCount} photos in gallery`}>
+          <div className="stat-card-top"><span className="stat-icon photo-icon" aria-hidden="true">PH</span><span className="stat-arrow" aria-hidden="true">↗</span></div>
           <div className="label">Total Photos</div>
           <div className="value">{photoCount}</div>
           <div className="hint">Across all categories</div>
         </button>
-        <button type="button" className="stat-card stat-card-button" onClick={() => onNavigate("gallery")}>
+        <button type="button" className="stat-card stat-card-button" onClick={() => onNavigate("gallery")} aria-label={`View ${videoCount} videos in gallery`}>
+          <div className="stat-card-top"><span className="stat-icon video-icon" aria-hidden="true">VD</span><span className="stat-arrow" aria-hidden="true">↗</span></div>
           <div className="label">Total Videos</div>
           <div className="value">{videoCount}</div>
           <div className="hint">Uploaded & published</div>
         </button>
-        <button type="button" className="stat-card stat-card-button" onClick={() => onNavigate("categories")}>
+        <button type="button" className="stat-card stat-card-button" onClick={() => onNavigate("categories")} aria-label={`Manage ${categories.length} gallery categories`}>
+          <div className="stat-card-top"><span className="stat-icon category-icon" aria-hidden="true">CA</span><span className="stat-arrow" aria-hidden="true">↗</span></div>
           <div className="label">Categories</div>
           <div className="value">{categories.length}</div>
           <div className="hint">Gallery categories</div>
         </button>
-        <button type="button" className="stat-card stat-card-button" onClick={() => onNavigate("subcategories")}>
+        <button type="button" className="stat-card stat-card-button" onClick={() => onNavigate("subcategories")} aria-label={`Manage ${subcatCount} subcategories`}>
+          <div className="stat-card-top"><span className="stat-icon subcategory-icon" aria-hidden="true">SC</span><span className="stat-arrow" aria-hidden="true">↗</span></div>
           <div className="label">Subcategories</div>
           <div className="value">{subcatCount}</div>
           <div className="hint">Active groups</div>
         </button>
-        <button type="button" className="stat-card stat-card-event stat-card-button" onClick={() => onNavigate("events")}>
+        <button type="button" className="stat-card stat-card-event stat-card-button" onClick={() => onNavigate("events")} aria-label={`Manage ${events.length} events`}>
+          <div className="stat-card-top"><span className="stat-icon event-icon" aria-hidden="true">EV</span><span className="stat-arrow" aria-hidden="true">↗</span></div>
           <div className="label">Events</div>
           <div className="value">{events.length}</div>
           <div className="hint">{eventCategories.length} event categories</div>
+        </button>
+        <button type="button" className="stat-card stat-card-enquiries stat-card-button" onClick={() => onNavigate("enquiries")} aria-label={`View ${enquiries.length} enquiries`}>
+          <div className="stat-card-top"><span className="stat-icon enquiry-icon" aria-hidden="true">EN</span><span className="stat-arrow" aria-hidden="true">↗</span></div>
+          <div className="label">Enquiries</div>
+          <div className="value">{enquiries.length}</div>
+          <div className="hint">Website contact requests</div>
         </button>
       </div>
 
