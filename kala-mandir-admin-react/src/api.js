@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "https://kalamandir.online/api";
+const API_URL = "https://kalamandir.online/api";
 
 export async function apiRequest(path, { token, ...options } = {}) {
   const headers = new Headers(options.headers || {});
