@@ -1,18 +1,26 @@
 import { useState, useEffect, useRef } from "react";
 import Modal from "../components/Modal";
 
-export default function MediaFormModal({ open, onClose, onSave, editing, categories }) {
+export default function MediaFormModal({
+  open,
+  onClose,
+  onSave,
+  editing,
+  categories,
+  mutationCount = 0,
+}) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("photo");
   const [categoryId, setCategoryId] = useState("");
   const [subcategory, setSubcategory] = useState("");
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [error, setError] = useState("");
   const fileRef = useRef(null);
   const zoneRef = useRef(null);
+  const submittingRef = useRef(false);
 
   const currentCategory = categories.find((category) => category.id === categoryId);
   const subcategories = currentCategory?.subcategories || [];
@@ -24,7 +32,9 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
     setCategoryId(editing?.categoryId || "");
     setSubcategory(editing?.subcategory || "");
     setFile(null);
-    setPreviewUrl(editing?.thumb || "");
+    setPreviewUrl(
+      editing?.type === "video" ? editing.url || "" : editing?.thumb || "",
+    );
     setError("");
     setUploadProgress(null);
   }, [open, editing]);
@@ -54,8 +64,9 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
     setFile(selectedFile);
   };
 
-  const handleSave = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submittingRef.current || mutationCount > 0) return;
     if (!title.trim()) return setError("Please enter a title.");
     if (!categoryId) return setError("Please create and select a matching category first.");
     if (!editing && !file) return setError(`Please select a ${type === "photo" ? "photo" : "video"} to upload.`);
@@ -69,7 +80,8 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
     formData.append("categoryId", categoryId);
     formData.append("subcategory", subcategory);
     if (file) formData.append("file", file);
-    setSaving(true);
+    submittingRef.current = true;
+    setSubmitting(true);
     setError("");
     try {
       setUploadProgress(0);
@@ -77,7 +89,8 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
     } catch (err) {
       setError(err.message);
     } finally {
-      setSaving(false);
+      submittingRef.current = false;
+      setSubmitting(false);
       setUploadProgress(null);
     }
   };
@@ -95,9 +108,14 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
       title={editing ? "Edit Media" : "Add Media"}
       footer={
         <>
-          <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button
+            type="submit"
+            form="media-form"
+            className="btn btn-primary"
+            disabled={submitting || mutationCount > 0}
+          >
+            {submitting
               ? uploadProgress === 100
                 ? "Finishing upload..."
                 : `Uploading... ${uploadProgress ?? 0}%`
@@ -108,8 +126,9 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
         </>
       }
     >
+      <form id="media-form" onSubmit={handleSubmit} noValidate>
       {error && <div className="error-banner" role="alert">{error}</div>}
-      {saving && uploadProgress !== null && (
+      {submitting && uploadProgress !== null && (
         <div className="upload-progress" role="status" aria-live="polite">
           <div className="upload-progress-heading">
             <span>{uploadProgress === 100 ? "File sent; processing upload..." : "Uploading file..."}</span>
@@ -182,7 +201,7 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
       {previewUrl && (
         <div style={{ marginBottom: 16, borderRadius: 10, overflow: "hidden", maxHeight: 180 }}>
           {type === "video" ? (
-            <video src={previewUrl} style={{ width: "100%", height: 180, objectFit: "cover" }} controls />
+            <video key={previewUrl} src={previewUrl} style={{ width: "100%", height: 180, objectFit: "cover" }} controls />
           ) : (
             <img src={previewUrl} alt="Media preview" style={{ width: "100%", height: 180, objectFit: "cover" }} />
           )}
@@ -218,6 +237,7 @@ export default function MediaFormModal({ open, onClose, onSave, editing, categor
           {subcategories.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
       </div>
+      </form>
     </Modal>
   );
 }

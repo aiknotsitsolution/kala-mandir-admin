@@ -49,7 +49,7 @@ export default function VideoPlayerModal({ open, onClose, item, categoryName }) 
         <div className="video-player-stage">
           {item.type === "video" ? (
             <video
-              key={item.id}
+              key={`${item.id}-${item.url}`}
               src={item.url}
               poster={item.thumbnailUrl || undefined}
               controls

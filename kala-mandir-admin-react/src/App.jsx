@@ -142,11 +142,13 @@ export default function App() {
     setEditingMedia(item);
     setMediaModalOpen(true);
   };
-  const saveMedia = async (formData, id, onProgress) => {
-    await runMutation(saveGalleryMedia({ formData, id, onProgress }));
-    toast.success(id ? "Media updated successfully." : "Media uploaded successfully.");
-    setMediaModalOpen(false);
-  };
+ const saveMedia = async (formData, id, onProgress) => {
+  await runMutation(saveGalleryMedia({ formData, id, onProgress }));
+  toast.success(id ? "Media updated successfully." : "Media uploaded successfully.");
+  setMediaModalOpen(false);
+  // force fresh data so the new video appears immediately
+  await refreshData();
+};
 
   const openAddEvent = () => {
     setEditingEvent(null);
@@ -356,6 +358,7 @@ export default function App() {
         onSave={saveMedia}
         editing={editingMedia}
         categories={categories}
+        mutationCount={mutationCount}
       />
       <CategoryFormModal
         open={catModalOpen}

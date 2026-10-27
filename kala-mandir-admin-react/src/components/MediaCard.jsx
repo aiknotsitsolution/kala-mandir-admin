@@ -21,7 +21,20 @@ export default function MediaCard({ item, categoryName, onEdit, onDelete, onOpen
         tabIndex={canOpen ? 0 : undefined}
         aria-label={canOpen ? `Play ${item.title}` : undefined}
       >
-        <img src={item.thumb} alt={item.title} loading="lazy" />
+        {isVideo ? (
+          <video
+            src={item.url}
+            poster={item.thumb}
+            muted
+            loop
+            autoPlay
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+          />
+        ) : (
+          <img src={item.thumb} alt={item.title} loading="lazy" />
+        )}
         {isVideo && (
           <div className="video-badge">
             <svg viewBox="0 0 24 24" fill="currentColor">

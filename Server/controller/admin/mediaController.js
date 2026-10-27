@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { randomUUID } = require("node:crypto");
 const Category = require("../../module/BlogModule/caetgorymodule");
 const Media = require("../../module/GalleryModule/mediaModule");
 const cloudinary = require("../../utils/cloudinary");
@@ -134,6 +135,7 @@ const uploadAsset = async (file, type) => {
       CLOUDINARY_UPLOAD_PRESET,
       {
         resource_type: resourceType,
+        public_id: `gallery-video-${randomUUID()}`,
         timeout: 0,
       },
       (error, result) => (error ? reject(error) : resolve(result)),
@@ -220,14 +222,28 @@ const createMedia = async (req, res) => {
     if (validation.error) {
       return res.status(400).json({ success: false, message: validation.error });
     }
-    asset = await uploadAsset(getUploadedFile(req), details.type);
-    const media = await Media.create({ ...details, title: details.title.trim(), ...asset });
+
+    const file = getUploadedFile(req);
+    if (!file) {
+      return res.status(400).json({ success: false, message: "Please select a photo or video to upload" });
+    }
+
+    asset = await uploadAsset(file, details.type);
+
+    const media = await Media.create({
+      ...details,
+      title: details.title.trim(),
+      ...asset,
+    });
+
     return res.status(201).json({ success: true, data: media });
   } catch (err) {
     console.error("Error creating gallery media:", {
       provider: req.body.type === "photo" ? "ImageKit" : "Cloudinary",
       httpCode: err.http_code || err.statusCode,
       error: sanitizeProviderError(err),
+      title: req.body.title,
+      type: req.body.type,
     });
     if (asset) {
       try {
