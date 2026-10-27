@@ -1,6 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import Modal from "../components/Modal";
 
+// Browsers report an empty MIME type for some containers (.mkv/.mov on Windows),
+// so the extension is the fallback signal.
+const getMediaType = ({ type = "", name = "" }) => {
+  if (type.startsWith("video/") || /\.(mp4|m4v|mov|webm|ogv|avi|mkv|3gp)$/i.test(name)) {
+    return "video";
+  }
+  if (type.startsWith("image/") || /\.(jpe?g|png|gif|webp|avif|bmp|heic|heif)$/i.test(name)) {
+    return "photo";
+  }
+  return null;
+};
+
 export default function MediaFormModal({
   open,
   onClose,
@@ -18,12 +30,20 @@ export default function MediaFormModal({
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [error, setError] = useState("");
+  const [attempted, setAttempted] = useState(false);
   const fileRef = useRef(null);
   const zoneRef = useRef(null);
   const submittingRef = useRef(false);
 
   const currentCategory = categories.find((category) => category.id === categoryId);
   const subcategories = currentCategory?.subcategories || [];
+
+  const invalidFields = {
+    title: attempted && !title.trim(),
+    category: attempted && !categoryId,
+    subcategory: attempted && !subcategory && subcategories.length > 0,
+    file: attempted && !file && (editing ? type !== editing.type : true),
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -37,6 +57,7 @@ export default function MediaFormModal({
     );
     setError("");
     setUploadProgress(null);
+    setAttempted(false);
   }, [open, editing]);
 
   useEffect(() => {
@@ -55,24 +76,35 @@ export default function MediaFormModal({
 
   const handleFile = (selectedFile) => {
     if (!selectedFile) return;
-    const expectedPrefix = type === "photo" ? "image/" : "video/";
-    if (!selectedFile.type.startsWith(expectedPrefix)) {
-      setError(`Choose a ${type === "photo" ? "photo/image" : "video"} file for this media type.`);
+    const detectedType = getMediaType(selectedFile);
+    if (!detectedType) {
+      setError("Select a photo or video file.");
       return;
     }
-    setError("");
+    setType(detectedType);
     setFile(selectedFile);
+    setError("");
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (submittingRef.current || mutationCount > 0) return;
-    if (!title.trim()) return setError("Please enter a title.");
-    if (!categoryId) return setError("Please create and select a matching category first.");
-    if (!editing && !file) return setError(`Please select a ${type === "photo" ? "photo" : "video"} to upload.`);
-    if (editing && type !== editing.type && !file) {
-      return setError("Select a new file when changing the media type.");
+    const fail = (message) => {
+      setAttempted(true);
+      return setError(message);
+    };
+    if (!title.trim()) return fail("Please enter a title.");
+    if (!categoryId) return fail("Please create and select a matching category first.");
+    // Categories without any subcategory can't satisfy this, so only ask when the
+    // selected category actually offers choices.
+    if (!subcategory && subcategories.length > 0) {
+      return fail("Please select a subcategory.");
     }
+    if (!editing && !file) return fail(`Please select a ${type === "photo" ? "photo" : "video"} to upload.`);
+    if (editing && type !== editing.type && !file) {
+      return fail("Select a new file when changing the media type.");
+    }
+    setAttempted(false);
 
     const formData = new FormData();
     formData.append("title", title.trim());
@@ -162,7 +194,8 @@ export default function MediaFormModal({
       <div className="field-group">
         <label htmlFor="media-title">Title</label>
         <input
-          className="field"
+          className={invalidFields.title ? "field is-invalid" : "field"}
+          aria-invalid={invalidFields.title}
           id="media-title"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -171,7 +204,7 @@ export default function MediaFormModal({
         />
       </div>
       <div
-        className="upload-zone"
+        className={invalidFields.file ? "upload-zone is-invalid" : "upload-zone"}
         ref={zoneRef}
         onClick={() => fileRef.current?.click()}
         onDragEnter={(event) => {
@@ -185,7 +218,7 @@ export default function MediaFormModal({
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
         </svg>
-        <p><strong>{file ? file.name : `Choose ${type === "photo" ? "photo" : "video"}`}</strong> or drag & drop</p>
+        <p><strong>{file ? file.name : "Choose a photo or video"}</strong> or drag & drop</p>
         <p style={{ fontSize: "0.8rem", marginTop: 4 }}>
           {editing && !file ? "Leave empty to keep the current file. " : ""}
           {type === "photo" ? "Images uploaded to ImageKit" : "Videos uploaded to Cloudinary"}
@@ -193,7 +226,7 @@ export default function MediaFormModal({
         <input
           ref={fileRef}
           type="file"
-          accept={type === "photo" ? "image/*" : "video/*"}
+          accept="image/*,video/*"
           style={{ display: "none" }}
           onChange={(event) => handleFile(event.target.files[0])}
         />
@@ -210,7 +243,8 @@ export default function MediaFormModal({
       <div className="field-group">
         <label htmlFor="media-category">Category</label>
         <select
-          className="field"
+          className={invalidFields.category ? "field is-invalid" : "field"}
+          aria-invalid={invalidFields.category}
           id="media-category"
           value={categoryId}
           onChange={(event) => {
@@ -228,9 +262,11 @@ export default function MediaFormModal({
       <div className="field-group">
         <label htmlFor="media-subcategory">Subcategory</label>
         <select
-          className="field"
+          className={invalidFields.subcategory ? "field is-invalid" : "field"}
+          aria-invalid={invalidFields.subcategory}
           id="media-subcategory"
           value={subcategory}
+          required={subcategories.length > 0}
           onChange={(event) => setSubcategory(event.target.value)}
         >
           <option value="">— None —</option>

@@ -1178,6 +1178,18 @@ img {
   background: var(--blush);
 }
 
+/* Required field left empty after a submit attempt */
+.field.is-invalid,
+.upload-zone.is-invalid {
+  border-color: #dc2626;
+  background: #fffafa;
+}
+
+.field.is-invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
 .upload-zone svg {
   width: 36px;
   height: 36px;
