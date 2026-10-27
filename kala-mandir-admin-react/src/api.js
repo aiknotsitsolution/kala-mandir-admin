@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://kalamandir.online/api";
 
 export async function apiRequest(path, { token, ...options } = {}) {
   const headers = new Headers(options.headers || {});
@@ -15,7 +15,10 @@ export async function apiRequest(path, { token, ...options } = {}) {
   return result;
 }
 
-export function uploadRequest(path, { token, method = "POST", body, onProgress }) {
+export function uploadRequest(
+  path,
+  { token, method = "POST", body, onProgress },
+) {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open(method, `${API_URL}${path}`);
@@ -35,17 +38,29 @@ export function uploadRequest(path, { token, method = "POST", body, onProgress }
         reject(new Error(`Request failed (${request.status})`));
         return;
       }
-      if (request.status < 200 || request.status >= 300 || result?.success === false) {
-        reject(new Error(result?.message || `Request failed (${request.status})`));
+      if (
+        request.status < 200 ||
+        request.status >= 300 ||
+        result?.success === false
+      ) {
+        reject(
+          new Error(result?.message || `Request failed (${request.status})`),
+        );
         return;
       }
       resolve(result);
     });
 
     request.addEventListener("error", () => {
-      reject(new Error("Network error while uploading. Check your connection and retry."));
+      reject(
+        new Error(
+          "Network error while uploading. Check your connection and retry.",
+        ),
+      );
     });
-    request.addEventListener("abort", () => reject(new Error("Upload was cancelled.")));
+    request.addEventListener("abort", () =>
+      reject(new Error("Upload was cancelled.")),
+    );
     request.send(body);
   });
 }
@@ -60,5 +75,9 @@ export function normalizeMedia(item) {
 }
 
 export function normalizeCategory(category) {
-  return { ...category, id: category._id, subcategories: category.subcategories || [] };
+  return {
+    ...category,
+    id: category._id,
+    subcategories: category.subcategories || [],
+  };
 }

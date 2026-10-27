@@ -9,6 +9,7 @@ const createCategory = async (req, res) => {
         message: "Category name is required",
       });
     }
+    
     const newCategory = await Category.create({ name });
     res.status(201).json({
       success: true,

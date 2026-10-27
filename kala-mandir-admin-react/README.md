@@ -30,7 +30,7 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 Run the server in `Server` with `npm start` (or `node server.js`) and configure
 its `.env` with `MONGO_URI`, `JWT_SECRET`, Cloudinary credentials, and
 `CLOUDINARY_UPLOAD_PRESET=kala mandir` (the preset must be set to Unsigned).
-The admin app calls `http://localhost:8000/api` by default. Set
+The admin app calls `https://kalamandir.online/api` by default. Set
 `VITE_API_URL` in an admin `.env` file to use a different API base URL.
 
 Create the initial admin account through the admin sign-in screen. To prevent
