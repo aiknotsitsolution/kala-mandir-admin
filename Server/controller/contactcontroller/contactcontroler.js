@@ -1,7 +1,7 @@
 const Contact = require("../../module/contactmodule/contactmodule.js"); // adjust path
 const axios = require("axios");
 const mongoose = require("mongoose");
-const { sendMail } = require("../../utils/mailer");
+const { sendMail, getInlineEmailLogo } = require("../../utils/mailer");
 
 const escapeHtml = (value) =>
   String(value).replace(/[&<>"']/g, (character) => ({
@@ -11,6 +11,38 @@ const escapeHtml = (value) =>
     '"': "&quot;",
     "'": "&#39;",
   })[character]);
+
+const renderContactEmail = ({ preheader, title, greeting, intro, details }) => `
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(preheader)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f2f7;padding:28px 12px;font-family:Arial,Helvetica,sans-serif;color:#302638;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;">
+        <tr><td align="center" style="background:#210b2c;padding:22px 20px;">
+          <img src="cid:kala-mandir-email-logo" width="190" alt="Kala Mandir — Art, Dance, Creativity" style="display:block;width:190px;max-width:80%;height:auto;border:0;">
+        </td></tr>
+        <tr><td style="padding:32px 32px 12px;">
+          <p style="margin:0 0 8px;color:#98752c;font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">${escapeHtml(preheader)}</p>
+          <h1 style="margin:0 0 18px;color:#271231;font-size:25px;line-height:1.3;">${escapeHtml(title)}</h1>
+          <p style="margin:0 0 12px;font-size:16px;line-height:1.7;">${escapeHtml(greeting)}</p>
+          <p style="margin:0 0 22px;color:#625b66;font-size:15px;line-height:1.7;">${escapeHtml(intro)}</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf8fb;border:1px solid #eee8f0;border-radius:10px;">
+            ${details.map(({ label, value }) => `
+              <tr><td style="padding:12px 15px;border-bottom:1px solid #eee8f0;vertical-align:top;">
+                <p style="margin:0 0 5px;color:#766b7c;font-size:12px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;">${escapeHtml(label)}</p>
+                <p style="margin:0;color:#302638;font-size:14px;line-height:1.65;overflow-wrap:anywhere;">${escapeHtml(value).replace(/\r?\n/g, "<br>")}</p>
+              </td></tr>
+            `).join("")}
+          </table>
+          <p style="margin:22px 0 0;color:#625b66;font-size:14px;line-height:1.7;">We appreciate you reaching out and will get back to you soon.</p>
+        </td></tr>
+        <tr><td align="center" style="padding:20px 24px 24px;color:#817887;font-size:12px;line-height:1.6;">
+          Kala Mandir · Art, Dance &amp; Creativity<br>
+          This is an automated confirmation of your contact form submission.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+`;
 
 // ✅ Main Controller
 const createContactMessage = async (req, res) => {
@@ -73,32 +105,65 @@ const createContactMessage = async (req, res) => {
     });
 
     const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+    const fromAddress = `"${process.env.EMAIL_FROM_NAME || "Kala Mandir"}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
+    const replyToAddress = process.env.REPLY_TO_EMAIL || process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+    const emailDetails = [
+      { label: "Name", value: name },
+      { label: "Email", value: email },
+      { label: "Phone", value: phone || "Not provided" },
+      { label: "Subject", value: subject },
+      { label: "Message", value: message },
+    ];
 
     // ✅ Send Email to Admin
     const adminMail = sendMail({
-      from: `"Website Enquiry" <${process.env.EMAIL_USER}>`,
+      from: fromAddress,
+      replyTo: email,
       to: adminEmail,
       subject: `New Enquiry: ${subject}`,
-      html: `
-        <h2 style="color:#c0392b;">New Contact Message</h2>
-        <p><b>Name:</b> ${name}</p>
-        <p><b>Email:</b> ${email}</p>
-        <p><b>Phone:</b> ${phone || "—"}</p>
-        <p><b>Subject:</b> ${subject}</p>
-        <p><b>Message:</b><br>${message.replace(/\n/g, "<br>")}</p>
-      `,
+      text: [
+        "New Kala Mandir contact message",
+        `Name: ${name}`,
+        `Email: ${email}`,
+        `Phone: ${phone || "Not provided"}`,
+        `Subject: ${subject}`,
+        `Message: ${message}`,
+      ].join("\n"),
+      html: renderContactEmail({
+        preheader: "New website contact message",
+        title: "A new message has arrived",
+        greeting: "Website contact form",
+        intro: "A visitor has sent a message to Kala Mandir. You can reply directly to this email to respond to them.",
+        details: emailDetails,
+      }),
+      attachments: [getInlineEmailLogo()],
     });
 
     // ✅ Send Email to User
     const userMail = sendMail({
-      from: `"Edu-hawk World" <${process.env.EMAIL_USER}>`,
+      from: fromAddress,
+      replyTo: replyToAddress,
       to: email,
       subject: "Thank You – We Received Your Inquiry",
-      html: `
-        <h2>Hello ${name},</h2>
-        <p>Thank you for contacting us. We will get back to you soon.</p>
-        <p><b>Your message:</b><br>${message.replace(/\n/g, "<br>")}</p>
-      `,
+      text: [
+        `Hello ${name},`,
+        "",
+        "Thank you for contacting Kala Mandir. We have received your message and will get back to you soon.",
+        "",
+        `Subject: ${subject}`,
+        `Your message: ${message}`,
+      ].join("\n"),
+      html: renderContactEmail({
+        preheader: "We have received your message",
+        title: "Thank you for reaching out!",
+        greeting: `Hello ${name},`,
+        intro: "Your message has safely reached the Kala Mandir team. We will review it and get back to you soon.",
+        details: [
+          { label: "Subject", value: subject },
+          { label: "Your message", value: message },
+        ],
+      }),
+      attachments: [getInlineEmailLogo()],
     });
 
     // ✅ Run both emails parallel
@@ -159,13 +224,16 @@ const createWebsiteEnquiry = async (req, res) => {
     });
     const notificationRecipient =
       process.env.ADMIN_EMAIL || process.env.EMAIL_TO || process.env.EMAIL_USER;
+    const fromAddress = `"${process.env.EMAIL_FROM_NAME || "Kala Mandir"}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
+    const replyToAddress = process.env.REPLY_TO_EMAIL || process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
     let emailSent = false;
     try {
       if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !notificationRecipient) {
         throw new Error("Email notification configuration is incomplete");
       }
       await sendMail({
-        from: `"Kala Mandir Website" <${process.env.EMAIL_USER}>`,
+        from: fromAddress,
+        replyTo: replyToAddress,
         to: notificationRecipient,
         subject: `New Kala Mandir enquiry: ${interest}`,
         text: [

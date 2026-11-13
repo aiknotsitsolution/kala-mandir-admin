@@ -1,17 +1,20 @@
 const Contact = require("../../module/querymodule/querymodule");
 const nodemailer = require("nodemailer");
 
+const senderAddress = `"${process.env.EMAIL_FROM_NAME || "Kala Mandir"}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
+const replyAddress = process.env.REPLY_TO_EMAIL || process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+
 // ✅ Keep ONE transporter at the top (Best Practice)
 const transporter = nodemailer.createTransport({
-  host: "smtpout.secureserver.net", // Godaddy
-  port: 465,
-  secure: true,
+  host: process.env.EMAIL_HOST || "smtp.gmail.com",
+  port: Number(process.env.EMAIL_PORT || 465),
+  secure: Number(process.env.EMAIL_PORT || 465) === 465,
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    pass: process.env.EMAIL_PASS?.replace(/\s/g, ""),
   },
   tls: {
-    rejectUnauthorized: false,
+    rejectUnauthorized: true,
   },
   connectionTimeout: 10000,
   greetingTimeout: 10000,
@@ -66,9 +69,20 @@ const Createquery = async (req, res) => {
     // 1. Send Mail to Admin
     try {
       await transporter.sendMail({
-        from: `"Website Enquiry" <${process.env.EMAIL_USER}>`,
+        from: senderAddress,
+        replyTo: replyAddress,
         to: adminEmail,
         subject: `New Enquiry from ${name}`,
+        text: [
+          `Name: ${name}`,
+          `Email: ${email}`,
+          `Phone: ${phone}`,
+          `City: ${city || "-"}`,
+          `Country: ${country || "-"}`,
+          `Interested In: ${interested || "Yes"}`,
+          `NEET Status: ${neetStatus || "Not provided"}`,
+          `Message: ${savedMessage}`,
+        ].join("\n"),
         html: `
           <h2>New Student Enquiry</h2>
           <p><b>Name:</b> ${name}</p>
@@ -90,9 +104,11 @@ const Createquery = async (req, res) => {
     // 2. Send Thank You Mail to User (Improved)
     try {
       await transporter.sendMail({
-        from: `"Edu-hawk World" <${process.env.EMAIL_USER}>`,
+        from: senderAddress,
+        replyTo: replyAddress,
         to: email,
-        subject: "Thank You for Contacting Edu-hawk World!",
+        subject: "Thank You for Contacting Kala Mandir!",
+        text: `Hello ${name},\n\nThank you for reaching out to us. We have received your inquiry and our team will contact you shortly.\n\nBest regards,\nKala Mandir`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #2c3e50;">Hello ${name},</h2>
@@ -111,10 +127,8 @@ const Createquery = async (req, res) => {
             <br>
             <p>
               Best regards,<br>
-              <strong>Edu-hawk World</strong><br>
-              📍 Delhi, India<br>
-              ✉️ admin@eduhawk.in<br>
-              📞 +91 9630736070
+              <strong>Kala Mandir</strong><br>
+              📍 India
             </p>
             
             <hr>
