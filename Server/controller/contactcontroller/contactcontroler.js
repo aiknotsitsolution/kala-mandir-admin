@@ -12,13 +12,13 @@ const escapeHtml = (value) =>
     "'": "&#39;",
   })[character]);
 
-const renderContactEmail = ({ preheader, title, greeting, intro, details }) => `
+const renderContactEmail = ({ preheader, title, greeting, intro, details, footer }) => `
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(preheader)}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f2f7;padding:28px 12px;font-family:Arial,Helvetica,sans-serif;color:#302638;">
     <tr><td align="center">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;">
         <tr><td align="center" style="background:#210b2c;padding:22px 20px;">
-          <img src="cid:kala-mandir-email-logo" width="190" alt="Kala Mandir — Art, Dance, Creativity" style="display:block;width:190px;max-width:80%;height:auto;border:0;">
+          <img src="cid:kala-mandir-email-logo" width="240" alt="Kala Mandir — Art, Dance, Creativity" style="display:block;width:240px;max-width:90%;height:auto;border:0;">
         </td></tr>
         <tr><td style="padding:32px 32px 12px;">
           <p style="margin:0 0 8px;color:#98752c;font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">${escapeHtml(preheader)}</p>
@@ -33,7 +33,7 @@ const renderContactEmail = ({ preheader, title, greeting, intro, details }) => `
               </td></tr>
             `).join("")}
           </table>
-          <p style="margin:22px 0 0;color:#625b66;font-size:14px;line-height:1.7;">We appreciate you reaching out and will get back to you soon.</p>
+          <p style="margin:22px 0 0;color:#625b66;font-size:14px;line-height:1.7;">${escapeHtml(footer || "We appreciate you reaching out and will get back to you soon.")}</p>
         </td></tr>
         <tr><td align="center" style="padding:20px 24px 24px;color:#817887;font-size:12px;line-height:1.6;">
           Kala Mandir · Art, Dance &amp; Creativity<br>
@@ -185,6 +185,7 @@ const createContactMessage = async (req, res) => {
 
 const createWebsiteEnquiry = async (req, res) => {
   const name = String(req.body.name || "").trim();
+  const email = String(req.body.email || "").trim().toLowerCase();
   const phone = String(req.body.phone || "").trim();
   const interest = String(req.body.interest || "").trim();
   const ageGroup = String(req.body.ageGroup || "").trim();
@@ -192,15 +193,18 @@ const createWebsiteEnquiry = async (req, res) => {
   const company = String(req.body.company || "").trim();
 
   if (company) return res.status(201).json({ success: true, message: "Enquiry received" });
-  if (!name || !phone || !interest) {
+  if (!name || !email || !phone || !interest) {
     return res.status(400).json({
       success: false,
-      message: "Name, phone and interest are required",
+      message: "Name, email, phone and interest are required",
     });
   }
-  if (name.length > 80 || phone.length > 20 || interest.length > 100 ||
+  if (name.length > 80 || email.length > 254 || phone.length > 20 || interest.length > 100 ||
     ageGroup.length > 40 || message.length > 600) {
     return res.status(400).json({ success: false, message: "One or more enquiry fields are too long" });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ success: false, message: "Enter a valid email address" });
   }
   if (!/^(\+?91[-\s]?)?[6-9]\d{9}$/.test(phone)) {
     return res.status(400).json({ success: false, message: "Enter a valid 10-digit Indian mobile number" });
@@ -215,6 +219,7 @@ const createWebsiteEnquiry = async (req, res) => {
   try {
     const enquiry = await Contact.create({
       username: name,
+      email,
       phone,
       subject: interest,
       interest,
@@ -226,37 +231,89 @@ const createWebsiteEnquiry = async (req, res) => {
       process.env.ADMIN_EMAIL || process.env.EMAIL_TO || process.env.EMAIL_USER;
     const fromAddress = `"${process.env.EMAIL_FROM_NAME || "Kala Mandir"}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
     const replyToAddress = process.env.REPLY_TO_EMAIL || process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
-    let emailSent = false;
+    let adminEmailSent = false;
+    let userEmailSent = false;
     try {
       if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !notificationRecipient) {
         throw new Error("Email notification configuration is incomplete");
       }
       await sendMail({
         from: fromAddress,
-        replyTo: replyToAddress,
+        replyTo: email,
         to: notificationRecipient,
         subject: `New Kala Mandir enquiry: ${interest}`,
         text: [
           "A new enquiry was submitted on the Kala Mandir website.",
           `Name: ${name}`,
+          `Email: ${email}`,
           `Phone: ${phone}`,
           `Interested in: ${interest}`,
           `Age group: ${ageGroup || "Not provided"}`,
           `Message: ${message || "No additional message provided."}`,
         ].join("\n"),
-        html: `
-          <h2>New Kala Mandir website enquiry</h2>
-          <p><strong>Name:</strong> ${escapeHtml(name)}</p>
-          <p><strong>Phone:</strong> ${escapeHtml(phone)}</p>
-          <p><strong>Interested in:</strong> ${escapeHtml(interest)}</p>
-          <p><strong>Age group:</strong> ${escapeHtml(ageGroup || "Not provided")}</p>
-          <p><strong>Message:</strong><br>${escapeHtml(message || "No additional message provided.").replace(/\r?\n/g, "<br>")}</p>
-        `,
+        html: renderContactEmail({
+          preheader: "New website enquiry",
+          title: "A new enquiry has arrived",
+          greeting: "Website enquiry",
+          intro: "A visitor has sent an enquiry to Kala Mandir. Reply directly to this email to respond to them.",
+          details: [
+            { label: "Name", value: name },
+            { label: "Email", value: email },
+            { label: "Phone", value: phone },
+            { label: "Interested in", value: interest },
+            { label: "Age group", value: ageGroup || "Not provided" },
+            { label: "Message", value: message || "No additional message provided." },
+          ],
+          footer: "You can reply directly to this email to contact the visitor.",
+        }),
+        attachments: [getInlineEmailLogo()],
       });
-      emailSent = true;
+      adminEmailSent = true;
     } catch (emailError) {
       console.error("Website enquiry email notification failed:", emailError);
     }
+
+    try {
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        throw new Error("User confirmation email configuration is incomplete");
+      }
+      await sendMail({
+        from: fromAddress,
+        replyTo: replyToAddress,
+        to: email,
+        subject: "Thank You – We Received Your Enquiry",
+        text: [
+          `Hello ${name},`,
+          "",
+          "Thank you for contacting Kala Mandir. We have received your enquiry and will be in touch soon.",
+          "",
+          `Interested in: ${interest}`,
+          `Phone: ${phone}`,
+          "",
+          "Warm regards,",
+          "Kala Mandir Team",
+        ].join("\n"),
+        html: renderContactEmail({
+          preheader: "We have received your enquiry",
+          title: "Thank you for reaching out!",
+          greeting: `Hello ${name},`,
+          intro: "Your enquiry has safely reached the Kala Mandir team. We will review it and get back to you soon.",
+          details: [
+            { label: "Interested in", value: interest },
+            { label: "Phone", value: phone },
+            { label: "Age group", value: ageGroup || "Not provided" },
+            { label: "Message", value: message || "No additional message provided." },
+          ],
+          footer: "Warm regards, Kala Mandir Team",
+        }),
+        attachments: [getInlineEmailLogo()],
+      });
+      userEmailSent = true;
+    } catch (emailError) {
+      console.error("Website enquiry acknowledgement email failed:", emailError);
+    }
+
+    const emailSent = adminEmailSent && userEmailSent;
     return res.status(201).json({
       success: true,
       message: "Your enquiry has been received",

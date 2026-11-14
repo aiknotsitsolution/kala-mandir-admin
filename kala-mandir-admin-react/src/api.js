@@ -1,4 +1,4 @@
-const API_URL = "https://kalamandir.online/api";
+const API_URL = "http://localhost:8000/api"; // Replace with your actual API URL
 
 export async function apiRequest(path, { token, ...options } = {}) {
   const headers = new Headers(options.headers || {});

@@ -43,8 +43,8 @@ morgan.token("body", (req) => {
   return JSON.stringify(safeBody);
 });
 
-app.use(express.json()); // for JSON bodies
-app.use(express.urlencoded({ extended: true })); // for form-urlencoded bodies
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 const connectToDatabase = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
@@ -62,8 +62,6 @@ app.use(
     abortOnLimit: true,
   }),
 );
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 app.use(
   morgan(":method :url :status :res[content-length] - :response-time ms :body"),
@@ -96,6 +94,13 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid JSON request body. Send valid JSON with Content-Type: application/json.",
+    });
+  }
+
   console.error(err.stack);
   const status = err.status || err.statusCode || 500;
   res.status(status).json({
